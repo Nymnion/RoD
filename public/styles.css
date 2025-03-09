@@ -98,7 +98,7 @@ body {
     align-items: center;
     padding: 30px;
     background: linear-gradient(to bottom, #201714, #1a110e);
-    overflow: auto;
+    overflow: hidden; /* Hide scrollbars */
     height: 100%;
     min-height: 0;
     max-height: none;
@@ -106,6 +106,16 @@ body {
     box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
     position: relative;
     cursor: grab;
+}
+
+/* Remove WebKit scrollbars completely */
+.cave-path::-webkit-scrollbar {
+    display: none;
+}
+
+/* Remove Firefox scrollbars */
+.cave-path {
+    scrollbar-width: none;
 }
 
 .cave-path:active {
@@ -149,6 +159,8 @@ body {
     background-color: #8e7d5b;
     z-index: 1;
     pointer-events: none;
+    height: 6px; /* Thicker line for better visibility */
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
 }
 
 /* Cards - Using only Lucide icons */
@@ -340,6 +352,38 @@ body {
     color: #66ccff;
 }
 
+/* Cave Entrance Card */
+.entrance-card {
+    background: linear-gradient(to bottom, #291e15, #1a130d);
+    color: #d4af37;
+    border: 2px solid #d4af37;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+.entrance-card .card-content::before,
+.entrance-card .card-content::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(212, 175, 55, 0.4);
+    opacity: 0.5;
+}
+
+.entrance-card .card-content::before {
+    top: 5px;
+    left: 5px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.entrance-card .card-content::after {
+    bottom: 5px;
+    right: 5px;
+    border-left: none;
+    border-top: none;
+}
+
 /* Controls Area */
 .controls-area {
     display: flex;
@@ -498,6 +542,40 @@ button:disabled {
 
 .primary-btn:hover:not(:disabled) {
     background-color: #8c6d31;
+}
+
+/* Grandmaster button styling */
+.grandmaster-btn {
+    background-color: #3c2a6b;
+    color: #e8d8b0;
+    font-weight: bold;
+    border: 1px solid rgba(162, 125, 255, 0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+    margin-top: 8px;
+    position: relative;
+}
+
+.grandmaster-btn::before {
+    content: "🧙";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+}
+
+.grandmaster-btn:hover:not(:disabled) {
+    background-color: #4e379c;
+}
+
+/* Special styling for Grandmaster player */
+.player[data-username="Grandmaster"] {
+    border-left: 3px solid #a27dff;
+    background: linear-gradient(to bottom, #2e2040, #1e1428);
+}
+
+.player[data-username="Grandmaster"] .player-name {
+    color: #d0b8ff;
 }
 
 /* Timer */
@@ -940,14 +1018,13 @@ button:disabled {
     flex-direction: column;
     gap: 5px;
     z-index: 10;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s;
-}
-
-.zoom-controls.visible {
     opacity: 1;
     visibility: visible;
+    background-color: rgba(38, 26, 22, 0.75);
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid #8e7d5b;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 .zoom-btn {
@@ -966,10 +1043,13 @@ button:disabled {
 
 .zoom-btn:hover {
     background-color: rgba(58, 46, 32, 0.9);
+    border-color: #d4af37;
 }
 
-.zoom-reset {
-    font-size: 14px;
-    padding: 5px;
-    width: 36px;
+.zoom-btn.focus-latest {
+    color: #d4af37;
+}
+
+.zoom-btn.focus-entrance {
+    color: #d4af37;
 }

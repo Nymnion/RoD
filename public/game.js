@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elementsMap.currentRound = document.getElementById('current-round');
     elementsMap.playerCount = document.getElementById('player-count');
     elementsMap.activePlayers = document.getElementById('active-players');
+    elementsMap.joinGrandmasterBtn = document.getElementById('join-grandmaster');
     
     // Initialize templates
     cardTemplate = document.getElementById('card-template');
@@ -65,6 +66,12 @@ document.addEventListener('DOMContentLoaded', () => {
         elementsMap.revealCardBtn.addEventListener('click', revealNextCard);
     } else {
         console.error("Reveal card button not found!");
+    }
+    
+    if (elementsMap.joinGrandmasterBtn) {
+        elementsMap.joinGrandmasterBtn.addEventListener('click', joinAsGrandmaster);
+    } else {
+        console.error("Join as Grandmaster button not found!");
     }
     
     // Set up socket connection for chat messages
@@ -191,6 +198,14 @@ function startGame() {
     if (elementsMap.startGameBtn) elementsMap.startGameBtn.disabled = true;
     if (elementsMap.revealCardBtn) elementsMap.revealCardBtn.disabled = true;
     
+    // Enable the Grandmaster button when a new game starts
+    if (elementsMap.joinGrandmasterBtn) {
+        elementsMap.joinGrandmasterBtn.disabled = false;
+    }
+    
+    // Initialize path with entrance card
+    initializePathWithEntranceCard();
+    
     // Start join timer
     const limitMessage = gameState.playerLimit > 0 ? 
         `Joining phase! Type !join in chat to play. (Limited to ${gameState.playerLimit} players)` : 
@@ -254,6 +269,26 @@ function startGame() {
             }
         }
     }, 1000);
+}
+
+/**
+ * Initialize path with entrance card as starting point
+ */
+function initializePathWithEntranceCard() {
+    // Create entrance card
+    const entranceCard = {
+        type: 'entrance',
+        value: 0
+    };
+    
+    // Add to path
+    gameState.currentPath.push(entranceCard);
+    
+    // Draw the path with just the entrance card
+    updatePathDisplay();
+    
+    // Add log entry
+    addLogEntry("The expedition begins at the cave entrance!", 'highlight');
 }
 
 /**
@@ -843,6 +878,9 @@ function startNextRound() {
         elementsMap.revealCardBtn.textContent = 'Reveal First Card';
         elementsMap.revealCardBtn.disabled = false;
     }
+    
+    // Initialize with entrance card automatically
+    initializePathWithEntranceCard();
 }
 
 /**
@@ -874,6 +912,11 @@ function endGame(message) {
     // Enable start game button
     elementsMap.startGameBtn.disabled = false;
     elementsMap.revealCardBtn.disabled = true;
+    
+    // Enable the Grandmaster button again when the game ends
+    if (elementsMap.joinGrandmasterBtn) {
+        elementsMap.joinGrandmasterBtn.disabled = false;
+    }
 }
 
 /**
@@ -892,16 +935,40 @@ function handleChatMessage(data) {
 }
 
 /**
+ * Join the game as the Grandmaster
+ */
+function joinAsGrandmaster() {
+    if (!gameState.isActive || gameState.phase !== 'joining') {
+        // Only allow joining during the joining phase
+        updateGameMessage("The Grandmaster can only join during the joining phase!");
+        return;
+    }
+
+    // Check if Grandmaster already exists
+    if (gameState.players["Grandmaster"]) {
+        updateGameMessage("The Grandmaster is already in this expedition!");
+        return;
+    }
+    
+    // Add the Grandmaster as a player
+    addPlayer("Grandmaster", true);
+    
+    // Provide feedback
+    updateGameMessage("The Grandmaster has joined the expedition!");
+    elementsMap.joinGrandmasterBtn.disabled = true;
+}
+
+/**
  * Add a player to the game
  */
-function addPlayer(username) {
+function addPlayer(username, isGrandmaster = false) {
     // Check if player already exists
     if (gameState.players[username]) {
         return;
     }
     
-    // Check if player limit has been reached
-    if (gameState.playerLimit > 0 && Object.keys(gameState.players).length >= gameState.playerLimit) {
+    // Check if player limit has been reached (skip check for Grandmaster)
+    if (!isGrandmaster && gameState.playerLimit > 0 && Object.keys(gameState.players).length >= gameState.playerLimit) {
         addLogEntry(`${username} tried to join, but the player limit (${gameState.playerLimit}) has been reached.`, 'warning');
         return;
     }
@@ -912,7 +979,8 @@ function addPlayer(username) {
         inCave: false,
         holding: 0,
         chest: 0,
-        status: 'waiting'
+        status: 'waiting',
+        isGrandmaster: isGrandmaster
     };
     
     // Add to game state
@@ -925,8 +993,12 @@ function addPlayer(username) {
     // Update player count
     elementsMap.playerCount.textContent = Object.keys(gameState.players).length;
     
-    // Log the join
-    addLogEntry(`${username} joined the game!`, 'success');
+    // Log the join - special message for Grandmaster
+    if (isGrandmaster) {
+        addLogEntry(`The Grandmaster has arrived to oversee the expedition!`, 'highlight');
+    } else {
+        addLogEntry(`${username} joined the game!`, 'success');
+    }
 }
 
 /**
@@ -952,7 +1024,7 @@ function playerDecision(username, decision) {
 /**
  * Create a card element from a card object
  */
-function createCardElement(card) {
+function createCardElement(card, isNewCard = false) {
     if (!cardTemplate) {
         console.error("Card template not found!");
         return document.createElement('div'); // Return empty div as fallback
@@ -968,12 +1040,45 @@ function createCardElement(card) {
         cardElement.classList.add(`trap-${card.trapType}`);
     }
     
+    // Only add animation for newly revealed cards (not the entrance)
+    if (isNewCard && card.type !== 'entrance') {
+        cardElement.classList.add('card-animated');
+    } else {
+        // Remove transform from animation for starting cards
+        cardElement.style.transform = 'scale(1)';
+    }
+    
     // Set card content
     const cardTitle = cardElement.querySelector('.card-title');
     const cardImage = cardElement.querySelector('.card-image');
     const cardValueContainer = cardElement.querySelector('.card-value-container');
-    
-    if (card.type === 'treasure') {
+
+    if (card.type === 'entrance') {
+        // Set title
+        if (cardTitle) {
+            cardTitle.textContent = 'Cave Entrance';
+            cardTitle.title = 'Starting Point'; // Hover tooltip
+        }
+        
+        // Set entrance icon
+        if (cardImage) {
+            cardImage.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"></path>
+                    <path d="m12 5 7 7-7 7"></path>
+                </svg>
+            `;
+        }
+        
+        // Set value content
+        if (cardValueContainer) {
+            cardValueContainer.innerHTML = '';
+            const valueElem = document.createElement('div');
+            valueElem.className = 'card-value';
+            valueElem.innerHTML = '<span>START</span>';
+            cardValueContainer.appendChild(valueElem);
+        }
+    } else if (card.type === 'treasure') {
         // Set title
         if (cardTitle) {
             cardTitle.textContent = 'Treasure';
@@ -1151,7 +1256,7 @@ function createPlayerElement(player) {
                                    player.status === 'exited' ? 'Exited' : 'Out';
     }
     if (holdingElement) holdingElement.textContent = player.holding || 0;
-    if (chestElement) chestElement.textContent = player.chest || 0;
+    if (chestElement) holdingElement.textContent = player.chest || 0;
     
     // Add status class
     if (statusElement) {
@@ -1315,11 +1420,6 @@ function updatePathDisplay() {
     // Clear previous path
     elementsMap.cavePath.innerHTML = '';
     
-    // Add cave entrance
-    const caveEntrance = document.createElement('div');
-    caveEntrance.className = 'cave-entrance';
-    elementsMap.cavePath.appendChild(caveEntrance);
-    
     if (gameState.currentPath.length === 0) {
         return;
     }
@@ -1335,18 +1435,20 @@ function updatePathDisplay() {
     pathContainer.appendChild(pathGrid);
     
     // Generate a zigzag path layout
-    // Start from the bottom center and move upward
     const gridPositions = generateGridPositions(gameState.currentPath.length);
     
     // Add cards to their grid positions
     gameState.currentPath.forEach((card, index) => {
-        const cardElement = createCardElement(card);
+        // Check if this is the last card (newest) for animation
+        const isLastCard = index === gameState.currentPath.length - 1 && index > 0;
+        const cardElement = createCardElement(card, isLastCard);
         const pos = gridPositions[index];
         
         // Position the card
         cardElement.style.gridColumn = `${pos.col} / span 1`;
         cardElement.style.gridRow = `${pos.row} / span 1`;
         cardElement.dataset.position = `${pos.col}-${pos.row}`;
+        cardElement.dataset.index = index;
         
         pathGrid.appendChild(cardElement);
     });
@@ -1358,8 +1460,6 @@ function updatePathDisplay() {
         
         drawConnectionLine(prevPos, currentPos, pathGrid);
     }
-    
-    // Add zoom controls (they will be appended by the initializeZoomPan function)
 }
 
 /**
@@ -1448,187 +1548,212 @@ function initializeZoomPan() {
     
     let pathContainer = null;
     let isDragging = false;
-    let startX, startY, scrollLeft, scrollTop;
+    let startX, startY;
+    let translateX = 0, translateY = 0;
     let scale = 1;
-    const MIN_SCALE = 0.2;
-    const MAX_SCALE = 5;
-    let currentMapPosition = { x: 0, y: 0 };
+    const MIN_SCALE = 0.3;
+    const MAX_SCALE = 3;
     
-    // Create zoom controls (initially hidden)
-    const zoomControls = document.createElement('div');
-    zoomControls.className = 'zoom-controls';
-    zoomControls.innerHTML = `
-        <button class="zoom-btn zoom-in">+</button>
-        <button class="zoom-btn zoom-reset">↺</button>
-        <button class="zoom-btn zoom-out">-</button>
+    // Create zoom controls container
+    const controls = document.createElement('div');
+    controls.className = 'zoom-controls';
+    controls.innerHTML = `
+        <button class="zoom-btn zoom-in" title="Zoom In">+</button>
+        <button class="zoom-btn zoom-out" title="Zoom Out">−</button>
+        <button class="zoom-btn zoom-reset" title="Reset Zoom">↺</button>
+        <button class="zoom-btn focus-latest" title="Go to Latest Card">⤑</button>
+        <button class="zoom-btn focus-entrance" title="Go to Entrance">⌂</button>
     `;
-    cavePath.appendChild(zoomControls);
+    cavePath.appendChild(controls);
     
-    // Function to show zoom controls when game starts
-    function showZoomControls() {
-        zoomControls.classList.add('visible');
-    }
-    
-    // Override startGame to show zoom controls when game starts
-    const originalStartGame = startGame;
-    startGame = function() {
-        originalStartGame.apply(this, arguments);
-        showZoomControls();
-    };
-    
-    // Set up zoom control event listeners
-    zoomControls.querySelector('.zoom-in').addEventListener('click', () => {
+    // Set up event listeners for buttons
+    controls.querySelector('.zoom-in').addEventListener('click', () => {
         if (scale < MAX_SCALE) {
             scale = Math.min(scale + 0.2, MAX_SCALE);
-            updateZoom();
+            updateTransform();
         }
     });
     
-    zoomControls.querySelector('.zoom-out').addEventListener('click', () => {
+    controls.querySelector('.zoom-out').addEventListener('click', () => {
         if (scale > MIN_SCALE) {
             scale = Math.max(scale - 0.2, MIN_SCALE);
-            updateZoom();
+            updateTransform();
         }
     });
     
-    zoomControls.querySelector('.zoom-reset').addEventListener('click', () => {
-        scale = 1;
-        if (pathContainer) {
-            pathContainer.style.transform = `scale(${scale})`;
-            centerPath();
+    controls.querySelector('.zoom-reset').addEventListener('click', () => {
+        resetView();
+    });
+    
+    controls.querySelector('.focus-latest').addEventListener('click', () => {
+        focusOnLatestCard();
+    });
+    
+    controls.querySelector('.focus-entrance').addEventListener('click', () => {
+        focusOnEntranceCard();
+    });
+    
+    // Mouse down - start dragging
+    cavePath.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.zoom-controls')) return;
+        
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        cavePath.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+    
+    // Mouse move - handle dragging
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateTransform();
+        e.preventDefault();
+    });
+    
+    // Mouse up - stop dragging
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        if (cavePath) cavePath.style.cursor = 'grab';
+    });
+    
+    // Mouse leave - also stop dragging
+    cavePath.addEventListener('mouseleave', () => {
+        if (isDragging) {
+            isDragging = false;
+            cavePath.style.cursor = 'grab';
         }
+    });
+    
+    // Touch start - for mobile
+    cavePath.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.zoom-controls')) return;
+        
+        if (e.touches.length === 1) {
+            isDragging = true;
+            startX = e.touches[0].clientX - translateX;
+            startY = e.touches[0].clientY - translateY;
+            e.preventDefault();
+        }
+    });
+    
+    // Touch move - for mobile
+    cavePath.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        
+        if (e.touches.length === 1) {
+            translateX = e.touches[0].clientX - startX;
+            translateY = e.touches[0].clientY - startY;
+            updateTransform();
+            e.preventDefault();
+        }
+    });
+    
+    // Touch end - for mobile
+    cavePath.addEventListener('touchend', () => {
+        isDragging = false;
     });
     
     // Wheel event for zooming
     cavePath.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const delta = e.deltaY * -0.002;
-        const oldScale = scale;
-        scale = Math.min(Math.max(scale + delta, MIN_SCALE), MAX_SCALE);
         
-        // Only update if scale changed
-        if (oldScale !== scale) {
-            updateZoom();
-        }
-    });
-    
-    // Mouse events for panning
-    cavePath.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.zoom-controls')) return;
+        // Determine zoom direction and factor
+        const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale + zoomDelta));
         
-        isDragging = true;
-        startX = e.pageX - cavePath.offsetLeft;
-        startY = e.pageY - cavePath.offsetTop;
-        scrollLeft = cavePath.scrollLeft;
-        scrollTop = cavePath.scrollTop;
-        currentMapPosition = { x: scrollLeft, y: scrollTop };
-        cavePath.style.cursor = 'grabbing';
-    });
-    
-    cavePath.addEventListener('mouseleave', () => {
-        isDragging = false;
-        cavePath.style.cursor = 'grab';
-    });
-    
-    cavePath.addEventListener('mouseup', () => {
-        isDragging = false;
-        cavePath.style.cursor = 'grab';
-    });
-    
-    cavePath.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        e.preventDefault();
+        // Calculate mouse position relative to container
+        const rect = cavePath.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
         
-        const x = e.pageX - cavePath.offsetLeft;
-        const y = e.pageY - cavePath.offsetTop;
-        const walkX = (x - startX) * 1;
-        const walkY = (y - startY) * 1;
+        // Calculate old world coordinates of mouse
+        const worldX = (mouseX - translateX) / scale;
+        const worldY = (mouseY - translateY) / scale;
         
-        cavePath.scrollLeft = scrollLeft - walkX;
-        cavePath.scrollTop = scrollTop - walkY;
-        currentMapPosition = { x: cavePath.scrollLeft, y: cavePath.scrollTop };
+        // Calculate new screen coordinates of same world point
+        const newScreenX = worldX * newScale + translateX;
+        const newScreenY = worldY * newScale + translateY;
+        
+        // Adjust translation to keep point under mouse
+        translateX += (mouseX - newScreenX);
+        translateY += (mouseY - newScreenY);
+        
+        // Set new scale
+        scale = newScale;
+        
+        updateTransform();
     });
     
-    // Touch events for mobile
-    cavePath.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.zoom-controls')) return;
-        
-        isDragging = true;
-        startX = e.touches[0].pageX - cavePath.offsetLeft;
-        startY = e.touches[0].pageY - cavePath.offsetTop;
-        scrollLeft = cavePath.scrollLeft;
-        scrollTop = cavePath.scrollTop;
-        currentMapPosition = { x: scrollLeft, y: scrollTop };
-    });
-    
-    cavePath.addEventListener('touchend', () => {
-        isDragging = false;
-    });
-    
-    cavePath.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        e.preventDefault();
-        
-        const x = e.touches[0].pageX - cavePath.offsetLeft;
-        const y = e.touches[0].pageY - cavePath.offsetTop;
-        const walkX = (x - startX) * 1;
-        const walkY = (y - startY) * 1;
-        
-        cavePath.scrollLeft = scrollLeft - walkX;
-        cavePath.scrollTop = scrollTop - walkY;
-        currentMapPosition = { x: cavePath.scrollLeft, y: cavePath.scrollTop };
-    });
-    
-    // Update zoom function
-    function updateZoom() {
+    // Update transform with current translation and scale
+    function updateTransform() {
         if (!pathContainer) return;
-        pathContainer.style.transform = `scale(${scale})`;
+        pathContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
     }
     
-    // Initial centering of the path container
-    function centerPath() {
-        if (!pathContainer) return;
-        const pathRect = pathContainer.getBoundingClientRect();
-        const caveRect = cavePath.getBoundingClientRect();
-        
-        cavePath.scrollLeft = (pathRect.width - caveRect.width) / 2;
-        cavePath.scrollTop = (pathRect.height - caveRect.height) / 2;
-        currentMapPosition = { x: cavePath.scrollLeft, y: cavePath.scrollTop };
+    // Reset view to default position
+    function resetView() {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
     }
     
-    // Function to restore map position after updates
-    function restoreMapPosition() {
-        if (cavePath && currentMapPosition) {
-            cavePath.scrollLeft = currentMapPosition.x;
-            cavePath.scrollTop = currentMapPosition.y;
+    // Focus on the latest card
+    function focusOnLatestCard() {
+        if (!pathContainer || gameState.currentPath.length === 0) return;
+        
+        const lastCard = Array.from(pathContainer.querySelectorAll('.card')).pop();
+        if (!lastCard) return;
+        
+        focusOnElement(lastCard);
+    }
+    
+    // Focus on the entrance card
+    function focusOnEntranceCard() {
+        if (!pathContainer) return;
+        
+        const entranceCard = pathContainer.querySelector('.entrance-card');
+        if (entranceCard) {
+            focusOnElement(entranceCard);
         }
     }
     
-    // Override updatePathDisplay to keep map position
+    // Helper to focus on a specific element
+    function focusOnElement(element) {
+        if (!element || !pathContainer) return;
+        
+        const containerRect = cavePath.getBoundingClientRect();
+        const cardRect = element.getBoundingClientRect();
+        
+        // Calculate where the element should be positioned
+        const targetX = containerRect.width / 2 - cardRect.width / 2;
+        const targetY = containerRect.height / 2 - cardRect.height / 2;
+        
+        // Calculate current position of element (relative to container)
+        const currentX = cardRect.left - containerRect.left;
+        const currentY = cardRect.top - containerRect.top;
+        
+        // Calculate the translation needed
+        translateX += (targetX - currentX);
+        translateY += (targetY - currentY);
+        
+        updateTransform();
+    }
+    
+    // Store a reference to path container once created
     const originalUpdatePathDisplay = updatePathDisplay;
     updatePathDisplay = function() {
-        // Save current position and scale
-        const saveScale = scale;
-        const savePosition = { ...currentMapPosition };
-        
-        // Update the path
         originalUpdatePathDisplay();
-        
-        // Get new path container reference
         pathContainer = cavePath.querySelector('.path-container');
         
-        // Set scale
-        if (pathContainer && saveScale !== 1) {
-            pathContainer.style.transform = `scale(${saveScale})`;
-        }
-        
-        // Restore position if not the first display
-        if (gameState.currentPath.length > 1) {
-            currentMapPosition = savePosition;
-            setTimeout(restoreMapPosition, 50); // Small delay to ensure DOM update
-        } else {
-            // Initial centering only on first card
-            setTimeout(centerPath, 50);
+        // If first time showing path (just entrance card), center it
+        if (gameState.currentPath.length === 1) {
+            resetView();
+            setTimeout(focusOnEntranceCard, 50);
         }
     };
 }
