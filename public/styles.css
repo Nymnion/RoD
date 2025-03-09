@@ -149,14 +149,14 @@ body {
 
 .path-grid {
     display: grid;
-    grid-template-columns: repeat(15, 160px);
-    grid-template-rows: repeat(15, 180px);
-    gap: 60px;
+    grid-template-columns: repeat(15, 140px);
+    grid-template-rows: repeat(15, 140px);
+    gap: 10px;
     position: relative;
     background-image: linear-gradient(to right, rgba(142, 125, 91, 0.05) 1px, transparent 1px),
                      linear-gradient(to bottom, rgba(142, 125, 91, 0.05) 1px, transparent 1px);
-    background-size: 160px 180px;
-    background-position: -30px -30px;
+    background-size: 150px 150px;
+    background-position: -5px -5px;
 }
 
 /* Make grid lines more visible on hover for better usability */
@@ -202,7 +202,6 @@ body {
     overflow: hidden;
     border: 1px solid rgba(182, 155, 104, 0.5);
     z-index: 2;
-    transition: transform 0.3s, box-shadow 0.3s;
     grid-column: span 1;
     grid-row: span 1;
 }

@@ -1402,8 +1402,8 @@ function updatePathDisplay() {
                 const marker = document.createElement('div');
                 marker.className = 'grid-cell-marker';
                 marker.textContent = `${col},${row}`;
-                marker.style.left = `${(col - 0.5) * 220 - 30 - 10}px`;
-                marker.style.top = `${(row - 0.5) * 240 - 30 - 10}px`;
+                marker.style.left = `${(col - 0.5) * 150 - 5 - 10}px`;
+                marker.style.top = `${(row - 0.5) * 150 - 5 - 10}px`;
                 pathGrid.appendChild(marker);
             }
         }
@@ -1568,11 +1568,11 @@ function drawConnectionLine(pos1, pos2, gridContainer) {
     connection.className = 'path-connection';
     
     // Calculate the center points of the start and end positions
-    // Each grid cell is 160px wide and 180px tall with 60px gap
-    const x1 = (pos1.col - 0.5) * 220 - 30;
-    const y1 = (pos1.row - 0.5) * 240 - 30;
-    const x2 = (pos2.col - 0.5) * 220 - 30;
-    const y2 = (pos2.row - 0.5) * 240 - 30;
+    // Each grid cell is 140px square with 10px gap
+    const x1 = (pos1.col - 0.5) * 150 - 5;
+    const y1 = (pos1.row - 0.5) * 150 - 5;
+    const x2 = (pos2.col - 0.5) * 150 - 5;
+    const y2 = (pos2.row - 0.5) * 150 - 5;
     
     // Calculate the angle and length of the line
     const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
