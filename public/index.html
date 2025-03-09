@@ -3,31 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diamant - Twitch Integration Game</title>
+    <title>Ruin of Diamant - Fantasy Cave Exploration</title>
     <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;700&family=Metamorphous&display=swap">
     <link rel="stylesheet" href="styles.css">
 	<link rel="stylesheet" href="forsen-lines.css">
 </head>
 <body>
     <div class="game-container">
         <div class="header">
-            <h1>Diamant</h1>
+            <h1>Ruins of Diamant</h1>
             <div class="round-info">
-                <span>Round: <span id="current-round">1</span>/5</span>
-                <span>Players: <span id="player-count">0</span></span>
+                <span>Expedition: <span id="current-round">1</span>/5</span>
+                <span>Explorers: <span id="player-count">0</span></span>
             </div>
         </div>
 
         <div class="main-area">
             <div class="cave-path" id="cave-path">
                 <!-- Cards will be added here dynamically -->
+                <div class="cave-entrance"></div>
             </div>
 
             <div class="controls-area">
                 <div class="streamer-controls">
-                    <h3>Game Controls</h3>
-                    <button id="start-game" class="primary-btn">Start New Game</button>
-                    <button id="reveal-card" class="primary-btn" disabled>Reveal First Card</button>
+                    <h3>Expedition Controls</h3>
+                    <button id="start-game" class="primary-btn">Begin New Expedition</button>
+                    <button id="reveal-card" class="primary-btn" disabled>Reveal First Discovery</button>
                     <div class="timer-container">
                         <div id="timer-bar" class="timer-bar"></div>
                         <span id="timer-text">30s</span>
@@ -35,9 +37,9 @@
                 </div>
 
                 <div class="game-status">
-                    <h3>Game Status</h3>
-                    <div id="game-message" class="game-message">Waiting to start game...</div>
-                    <h3>Game Log</h3>
+                    <h3>Scroll of Events</h3>
+                    <div id="game-message" class="game-message">Awaiting brave explorers to venture forth...</div>
+                    <h3>Adventure Log</h3>
                     <div id="game-log"></div>
                 </div>
             </div>
@@ -45,7 +47,7 @@
 
         <div class="bottom-area">
             <div class="player-list">
-                <h3>Explorers (<span id="active-players">0</span> active)</h3>
+                <h3>Adventuring Party (<span id="active-players">0</span> active)</h3>
                 <div id="players-container"></div>
             </div>
         </div>
@@ -76,8 +78,8 @@
             <div class="player-name"></div>
             <div class="player-status">In Cave</div>
             <div class="player-treasure">
-                <span>Holding: <span class="player-holding">0</span></span>
-                <span>Total: <span class="player-chest">0</span></span>
+                <span>Carrying: <span class="player-holding">0</span></span>
+                <span>Chest: <span class="player-chest">0</span></span>
             </div>
         </div>
     </template>
