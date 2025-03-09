@@ -287,6 +287,21 @@ function initializePathWithEntranceCard() {
     // Draw the path with just the entrance card
     updatePathDisplay();
     
+    // Make sure zoom controls are visible from the start
+    const cavePath = elementsMap.cavePath;
+    if (cavePath && !cavePath.querySelector('.zoom-controls') && window.initializeZoomPan) {
+        window.initializeZoomPan();
+    }
+    
+    // Focus on entrance card after a short delay to ensure rendering is complete
+    setTimeout(() => {
+        const controls = cavePath.querySelector('.zoom-controls');
+        if (controls) {
+            const entranceButton = controls.querySelector('.focus-entrance');
+            if (entranceButton) entranceButton.click();
+        }
+    }, 100);
+    
     // Add log entry
     addLogEntry("The expedition begins at the cave entrance!", 'highlight');
 }
@@ -1434,7 +1449,7 @@ function updatePathDisplay() {
     pathGrid.className = 'path-grid';
     pathContainer.appendChild(pathGrid);
     
-    // Generate a zigzag path layout
+    // Generate a path layout starting from the center
     const gridPositions = generateGridPositions(gameState.currentPath.length);
     
     // Add cards to their grid positions
@@ -1460,51 +1475,62 @@ function updatePathDisplay() {
         
         drawConnectionLine(prevPos, currentPos, pathGrid);
     }
+
+    // Add zoom controls if they don't exist
+    if (!elementsMap.cavePath.querySelector('.zoom-controls')) {
+        const controls = createZoomControls();
+        elementsMap.cavePath.appendChild(controls);
+        
+        // We need to set up event listeners for these controls
+        if (window.setupZoomControlEvents) {
+            window.setupZoomControlEvents(controls);
+        }
+    }
 }
 
 /**
- * Generate grid positions for the cards in a zigzag pattern within a much larger grid
+ * Generate grid positions for the cards in a left-to-right pattern with random vertical variations
  */
 function generateGridPositions(cardCount) {
     const positions = [];
     
     // Start position (center of grid)
-    let col = 8;
-    let row = 10;
+    let col = 8; // Middle column
+    let row = 8; // Middle row as starting point
     
     positions.push({ col, row });
     
-    // Directions: 0 = up, 1 = up-right, 2 = up-left
-    let direction = 0;
-    
-    for (let i = 1; i < cardCount; i++) {
-        // Choose next direction
-        if (i % 3 === 0) {
-            direction = 0; // Go straight up every 3rd card
-        } else {
-            // Alternate between right and left
-            direction = (i % 2 === 0) ? 2 : 1;
+    // For all subsequent cards (after the entrance), move from left to right
+    if (cardCount > 1) {
+        // For card after entrance, ensure it's to the right
+        positions.push({ col: col + 1, row: row });
+        
+        // Then for remaining cards
+        for (let i = 2; i < cardCount; i++) {
+            // Choose next direction randomly but favor rightward movement
+            const rand = Math.random();
+            
+            let nextCol = positions[i-1].col;
+            let nextRow = positions[i-1].row;
+            
+            if (rand < 0.5) {
+                // Go straight right (50% chance)
+                nextCol++;
+            } else if (rand < 0.75) {
+                // Go up-right (25% chance)
+                nextCol++;
+                nextRow--;
+            } else {
+                // Go down-right (25% chance)
+                nextCol++;
+                nextRow++;
+            }
+            
+            // Make sure we stay within grid bounds (vertically)
+            nextRow = Math.max(2, Math.min(nextRow, 14));
+            
+            positions.push({ col: nextCol, row: nextRow });
         }
-        
-        // Apply direction
-        switch (direction) {
-            case 0: // up
-                row--;
-                break;
-            case 1: // up-right
-                row--;
-                col++;
-                break;
-            case 2: // up-left
-                row--;
-                col--;
-                break;
-        }
-        
-        // Make sure we stay within grid bounds
-        col = Math.max(1, Math.min(col, 15));
-        
-        positions.push({ col, row });
     }
     
     return positions;
@@ -1540,6 +1566,22 @@ function drawConnectionLine(pos1, pos2, gridContainer) {
 }
 
 /**
+ * Create zoom controls for the cave path
+ */
+function createZoomControls() {
+    const controls = document.createElement('div');
+    controls.className = 'zoom-controls';
+    controls.innerHTML = `
+        <button class="zoom-btn zoom-in" title="Zoom In">+</button>
+        <button class="zoom-btn zoom-out" title="Zoom Out">−</button>
+        <button class="zoom-btn zoom-reset" title="Reset Zoom">↺</button>
+        <button class="zoom-btn focus-latest" title="Go to Latest Card">⤑</button>
+        <button class="zoom-btn focus-entrance" title="Go to Entrance">⌂</button>
+    `;
+    return controls;
+}
+
+/**
  * Set up zoom and pan functionality for the cave path
  */
 function initializeZoomPan() {
@@ -1555,44 +1597,40 @@ function initializeZoomPan() {
     const MAX_SCALE = 3;
     
     // Create zoom controls container
-    const controls = document.createElement('div');
-    controls.className = 'zoom-controls';
-    controls.innerHTML = `
-        <button class="zoom-btn zoom-in" title="Zoom In">+</button>
-        <button class="zoom-btn zoom-out" title="Zoom Out">−</button>
-        <button class="zoom-btn zoom-reset" title="Reset Zoom">↺</button>
-        <button class="zoom-btn focus-latest" title="Go to Latest Card">⤑</button>
-        <button class="zoom-btn focus-entrance" title="Go to Entrance">⌂</button>
-    `;
+    const controls = createZoomControls();
     cavePath.appendChild(controls);
     
     // Set up event listeners for buttons
-    controls.querySelector('.zoom-in').addEventListener('click', () => {
-        if (scale < MAX_SCALE) {
-            scale = Math.min(scale + 0.2, MAX_SCALE);
-            updateTransform();
-        }
-    });
+    setupZoomControlEvents(controls);
     
-    controls.querySelector('.zoom-out').addEventListener('click', () => {
-        if (scale > MIN_SCALE) {
-            scale = Math.max(scale - 0.2, MIN_SCALE);
-            updateTransform();
-        }
-    });
+    // Store setupZoomControlEvents on window for reuse
+    window.setupZoomControlEvents = setupZoomControlEvents;
     
-    controls.querySelector('.zoom-reset').addEventListener('click', () => {
-        resetView();
-    });
-    
-    controls.querySelector('.focus-latest').addEventListener('click', () => {
-        focusOnLatestCard();
-    });
-    
-    controls.querySelector('.focus-entrance').addEventListener('click', () => {
-        focusOnEntranceCard();
-    });
-    
+    // Set up event listeners for zoom control buttons
+    function setupZoomControlEvents(controls) {
+        controls.querySelector('.zoom-in').addEventListener('click', () => {
+            if (scale < MAX_SCALE) {
+                const rect = cavePath.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                zoomAtPoint(centerX, centerY, scale + 0.2);
+            }
+        });
+        
+        controls.querySelector('.zoom-out').addEventListener('click', () => {
+            if (scale > MIN_SCALE) {
+                const rect = cavePath.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                zoomAtPoint(centerX, centerY, scale - 0.2);
+            }
+        });
+        
+        controls.querySelector('.zoom-reset').addEventListener('click', resetView);
+        controls.querySelector('.focus-latest').addEventListener('click', focusOnLatestCard);
+        controls.querySelector('.focus-entrance').addEventListener('click', focusOnEntranceCard);
+    }
+
     // Mouse down - start dragging
     cavePath.addEventListener('mousedown', (e) => {
         if (e.target.closest('.zoom-controls')) return;
@@ -1665,28 +1703,35 @@ function initializeZoomPan() {
         const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
         const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale + zoomDelta));
         
-        // Calculate mouse position relative to container
+        // Get mouse position and zoom at that point
         const rect = cavePath.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         
-        // Calculate old world coordinates of mouse
-        const worldX = (mouseX - translateX) / scale;
-        const worldY = (mouseY - translateY) / scale;
+        zoomAtPoint(mouseX, mouseY, newScale);
+    });
+    
+    // Zoom centered at a specific point
+    function zoomAtPoint(pointX, pointY, newScale) {
+        if (!pathContainer) return;
         
-        // Calculate new screen coordinates of same world point
-        const newScreenX = worldX * newScale + translateX;
-        const newScreenY = worldY * newScale + translateY;
-        
-        // Adjust translation to keep point under mouse
-        translateX += (mouseX - newScreenX);
-        translateY += (mouseY - newScreenY);
+        // Calculate world coordinates of point before zoom
+        const worldX = (pointX - translateX) / scale;
+        const worldY = (pointY - translateY) / scale;
         
         // Set new scale
-        scale = newScale;
+        scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+        
+        // Calculate new screen coordinates of same world point
+        const newScreenX = worldX * scale;
+        const newScreenY = worldY * scale;
+        
+        // Adjust translation to keep point under mouse
+        translateX = pointX - newScreenX;
+        translateY = pointY - newScreenY;
         
         updateTransform();
-    });
+    }
     
     // Update transform with current translation and scale
     function updateTransform() {
@@ -1744,16 +1789,31 @@ function initializeZoomPan() {
         updateTransform();
     }
     
-    // Store a reference to path container once created
+    // Initial setup to ensure pathContainer is available immediately
+    pathContainer = cavePath.querySelector('.path-container');
+    
+    // Override the existing updatePathDisplay to keep the zoom controls and path container reference
     const originalUpdatePathDisplay = updatePathDisplay;
-    updatePathDisplay = function() {
+    window.updatePathDisplay = function() {
         originalUpdatePathDisplay();
+        
+        // Update path container reference after display update
         pathContainer = cavePath.querySelector('.path-container');
         
         // If first time showing path (just entrance card), center it
         if (gameState.currentPath.length === 1) {
             resetView();
-            setTimeout(focusOnEntranceCard, 50);
+            setTimeout(() => {
+                if (window.focusOnEntranceCard) {
+                    window.focusOnEntranceCard();
+                }
+            }, 50);
         }
     };
+    
+    // Force immediate focus on entrance card if it exists
+    focusOnEntranceCard();
 }
+
+// Store initializeZoomPan in window to ensure it's accessible
+window.initializeZoomPan = initializeZoomPan;
