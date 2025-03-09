@@ -143,6 +143,8 @@ body {
     position: relative;
     min-width: 1500px;
     min-height: 1500px;
+    padding: 30px;
+    box-sizing: border-box;
 }
 
 .path-grid {
@@ -151,6 +153,25 @@ body {
     grid-template-rows: repeat(15, 180px);
     gap: 60px;
     position: relative;
+    background-image: linear-gradient(to right, rgba(142, 125, 91, 0.05) 1px, transparent 1px),
+                     linear-gradient(to bottom, rgba(142, 125, 91, 0.05) 1px, transparent 1px);
+    background-size: 160px 180px;
+    background-position: -30px -30px;
+}
+
+/* Make grid lines more visible on hover for better usability */
+.path-grid:hover {
+    background-image: linear-gradient(to right, rgba(142, 125, 91, 0.08) 1px, transparent 1px),
+                     linear-gradient(to bottom, rgba(142, 125, 91, 0.08) 1px, transparent 1px);
+}
+
+/* Optional: Add cell indicators for debugging/development */
+.grid-cell-marker {
+    position: absolute;
+    font-size: 8px;
+    color: rgba(142, 125, 91, 0.2);
+    pointer-events: none;
+    opacity: 0.5;
 }
 
 /* Path connections */
@@ -176,13 +197,20 @@ body {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
     position: relative;
     animation: cardReveal 0.5s ease-out forwards;
-    transform: scale(0);
+    transform: scale(1); /* Default scale for non-animated cards */
+    opacity: 1; /* Ensure cards are visible by default */
     overflow: hidden;
     border: 1px solid rgba(182, 155, 104, 0.5);
     z-index: 2;
     transition: transform 0.3s, box-shadow 0.3s;
     grid-column: span 1;
     grid-row: span 1;
+}
+
+.card.card-animated {
+    animation: cardReveal 0.8s ease-out forwards; /* Increased duration slightly */
+    transform: scale(0); /* Starting state for animation */
+    opacity: 0;
 }
 
 .card:hover {
@@ -785,6 +813,7 @@ button:disabled {
     }
     100% {
         transform: scale(1) rotate(0);
+        opacity: 1;
     }
 }
 
@@ -992,7 +1021,7 @@ button:disabled {
 .cave-path::-webkit-scrollbar-track,
 #players-container::-webkit-scrollbar-track,
 #game-log::-webkit-scrollbar-track {
-    background: rgba(30, 20, 10, 0.3);
+    background: rgba(30, 20, 10, 3);
     border-radius: 4px;
 }
 
@@ -1053,4 +1082,28 @@ button:disabled {
 
 .zoom-btn.focus-entrance {
     color: #d4af37;
+}
+
+/* Card emoji styling */
+.card-emoji {
+    font-size: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    animation: pulse 2s infinite ease-in-out;
+    opacity: 1; /* Ensure emojis are visible */
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Make sure card animation works properly with emojis */
+.card.card-animated {
+    transform: scale(0);
+    opacity: 0;
 }

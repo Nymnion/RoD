@@ -1037,7 +1037,7 @@ function playerDecision(username, decision) {
 }
 
 /**
- * Create a card element from a card object
+ * Create a card element from a card object with emoji icons
  */
 function createCardElement(card, isNewCard = false) {
     if (!cardTemplate) {
@@ -1055,15 +1055,18 @@ function createCardElement(card, isNewCard = false) {
         cardElement.classList.add(`trap-${card.trapType}`);
     }
     
-    // Only add animation for newly revealed cards (not the entrance)
+    // Handle animation differently - remove transform from default style
+    // but keep the card-animated class
     if (isNewCard && card.type !== 'entrance') {
         cardElement.classList.add('card-animated');
+        // Don't override the transform directly - let CSS handle the animation
     } else {
-        // Remove transform from animation for starting cards
+        // For non-animated cards, set scale to 1 explicitly
         cardElement.style.transform = 'scale(1)';
+        cardElement.style.opacity = '1';
     }
     
-    // Set card content
+    // Rest of the function remains the same
     const cardTitle = cardElement.querySelector('.card-title');
     const cardImage = cardElement.querySelector('.card-image');
     const cardValueContainer = cardElement.querySelector('.card-value-container');
@@ -1075,14 +1078,9 @@ function createCardElement(card, isNewCard = false) {
             cardTitle.title = 'Starting Point'; // Hover tooltip
         }
         
-        // Set entrance icon
+        // Set entrance emoji
         if (cardImage) {
-            cardImage.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 12h14"></path>
-                    <path d="m12 5 7 7-7 7"></path>
-                </svg>
-            `;
+            cardImage.innerHTML = `<span class="card-emoji">🚪</span>`;
         }
         
         // Set value content
@@ -1100,14 +1098,9 @@ function createCardElement(card, isNewCard = false) {
             cardTitle.title = 'Treasure'; // Add title attribute for hover tooltip
         }
         
-        // Set Lucide treasure icon
+        // Set treasure emoji
         if (cardImage) {
-            cardImage.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-            `;
+            cardImage.innerHTML = `<span class="card-emoji">💎</span>`;
         }
         
         // Clear any previous values
@@ -1140,69 +1133,31 @@ function createCardElement(card, isNewCard = false) {
             cardTitle.title = trapName; // Add title attribute for hover tooltip
         }
         
-        // Set trap icons based on trap type
+        // Set trap emoji based on type
         if (cardImage) {
-            let iconSvg = '';
+            let emoji = '';
             
             switch (card.trapType) {
                 case 'snake':
-                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="m20 16-4-4 4-4"></path>
-                        <path d="M4 8a4 4 0 0 1 8 0c0 4.5 5 4.5 5 8a4 4 0 0 1-8 0"></path>
-                    </svg>`;
+                    emoji = '🐍';
                     break;
                 case 'spider':
-                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M7 2a4 4 0 0 0-4 4v1h8V2M17 2a4 4 0 0 1 4 4v1h-8V2M15 3h-6a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1ZM7.5 9h-5A4.5 4.5 0 0 0 1 10.5a2.5 2.5 0 0 0 5 0 8 8 0 0 1 16 0 2.5 2.5 0 0 0 5 0A4.5 4.5 0 0 0 21.5 9h-5"></path>
-                        <path d="M16 11a4 4 0 0 1-8 0"></path>
-                    </svg>`;
+                    emoji = '🕷️';
                     break;
                 case 'lava':
-                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2c.39 2.61 2.61 4.61 5 5-.39 2.61-2.61 4.61-5 5-.39-2.61-2.61-4.61-5-5 .39-2.61 2.61-4.61 5-5Z"></path>
-                        <path d="M18 8c.55 3.67 3.67 6.67 7 7-.55 3.67-3.67 6.67-7 7-.55-3.67-3.67-6.67-7-7 .55-3.67 3.67-6.67 7-7Z"></path>
-                        <path d="M5 13c.39 2.61 2.61 4.61 5 5-.39 2.61-2.61 4.61-5 5-.39-2.61-2.61-4.61-5-5 .39-2.61 2.61-4.61 5-5Z"></path>
-                    </svg>`;
+                    emoji = '🔥';
                     break;
                 case 'rockfall':
-                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="m21 12-6-6h-4L3 14v4h18v-6Z"></path>
-                        <path d="M16 8h-4L6 14v4h16v-6l-6-4Z"></path>
-                        <path d="M6 18v4"></path>
-                        <path d="M22 18v4"></path>
-                        <path d="m14 19-9 3"></path>
-                        <path d="m19 19 9 3"></path>
-                    </svg>`;
+                    emoji = '🪨';
                     break;
                 case 'poison':
-                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M10 3v3"></path>
-                        <path d="M14 3v3"></path>
-                        <path d="M9 13v3"></path>
-                        <path d="M15 13v3"></path>
-                        <path d="M11 19v2"></path>
-                        <path d="M13 19v2"></path>
-                        <path d="M18 3l-2 3"></path>
-                        <path d="M6 3l2 3"></path>
-                        <path d="M20 9l-1 2"></path>
-                        <path d="M5 9l1 2"></path>
-                        <path d="M18 14l2 1"></path>
-                        <path d="m4 14 2 1"></path>
-                        <circle cx="12" cy="12" r="4"></circle>
-                        <path d="M12 8v8"></path>
-                        <path d="M8 12h8"></path>
-                    </svg>`;
+                    emoji = '☠️';
                     break;
                 default:
-                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="m8.5 14.5-5-5 5-5"></path>
-                        <path d="m15.5 4.5 5 5-5 5"></path>
-                        <path d="M14.5 19.5 12 22l-2.5-2.5"></path>
-                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
-                    </svg>`;
+                    emoji = '⚠️';
             }
             
-            cardImage.innerHTML = iconSvg;
+            cardImage.innerHTML = `<span class="card-emoji">${emoji}</span>`;
         }
         
         // Clear value container for traps
@@ -1220,15 +1175,9 @@ function createCardElement(card, isNewCard = false) {
             cardTitle.title = 'Ancient Relic'; // Add title attribute for hover tooltip
         }
         
-        // Set relic icon
+        // Set relic emoji
         if (cardImage) {
-            cardImage.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M8 12h8"></path>
-                    <path d="M12 16V8"></path>
-                </svg>
-            `;
+            cardImage.innerHTML = `<span class="card-emoji">🏺</span>`;
         }
         
         // Clear any previous values
@@ -1425,6 +1374,7 @@ function getCardDescription(card) {
 
 /**
  * Update the path display with current cards and treasure values
+ * Modified to preserve existing card positions and add grid visualization
  */
 function updatePathDisplay() {
     if (!elementsMap.cavePath) {
@@ -1432,108 +1382,182 @@ function updatePathDisplay() {
         return;
     }
     
-    // Clear previous path
-    elementsMap.cavePath.innerHTML = '';
+    // Check if path container exists
+    const existingPathContainer = elementsMap.cavePath.querySelector('.path-container');
     
-    if (gameState.currentPath.length === 0) {
-        return;
-    }
-    
-    // Create path container
-    const pathContainer = document.createElement('div');
-    pathContainer.className = 'path-container';
-    elementsMap.cavePath.appendChild(pathContainer);
-    
-    // Create grid for the cards
-    const pathGrid = document.createElement('div');
-    pathGrid.className = 'path-grid';
-    pathContainer.appendChild(pathGrid);
-    
-    // Generate a path layout starting from the center
-    const gridPositions = generateGridPositions(gameState.currentPath.length);
-    
-    // Add cards to their grid positions
-    gameState.currentPath.forEach((card, index) => {
-        // Check if this is the last card (newest) for animation
-        const isLastCard = index === gameState.currentPath.length - 1 && index > 0;
-        const cardElement = createCardElement(card, isLastCard);
-        const pos = gridPositions[index];
+    if (!existingPathContainer) {
+        // First time setup - create container and add all cards
+        const pathContainer = document.createElement('div');
+        pathContainer.className = 'path-container';
+        elementsMap.cavePath.appendChild(pathContainer);
         
-        // Position the card
-        cardElement.style.gridColumn = `${pos.col} / span 1`;
-        cardElement.style.gridRow = `${pos.row} / span 1`;
-        cardElement.dataset.position = `${pos.col}-${pos.row}`;
-        cardElement.dataset.index = index;
+        const pathGrid = document.createElement('div');
+        pathGrid.className = 'path-grid';
+        pathContainer.appendChild(pathGrid);
         
-        pathGrid.appendChild(cardElement);
-    });
-    
-    // Add the connecting lines
-    for (let i = 1; i < gridPositions.length; i++) {
-        const prevPos = gridPositions[i - 1];
-        const currentPos = gridPositions[i];
-        
-        drawConnectionLine(prevPos, currentPos, pathGrid);
-    }
-
-    // Add zoom controls if they don't exist
-    if (!elementsMap.cavePath.querySelector('.zoom-controls')) {
-        const controls = createZoomControls();
-        elementsMap.cavePath.appendChild(controls);
-        
-        // We need to set up event listeners for these controls
-        if (window.setupZoomControlEvents) {
-            window.setupZoomControlEvents(controls);
+        // Add subtle grid cell markers for reference (optional, can be commented out for production)
+        // This helps visualize the actual grid positions
+        for (let row = 1; row <= 15; row++) {
+            for (let col = 1; col <= 15; col++) {
+                const marker = document.createElement('div');
+                marker.className = 'grid-cell-marker';
+                marker.textContent = `${col},${row}`;
+                marker.style.left = `${(col - 0.5) * 220 - 30 - 10}px`;
+                marker.style.top = `${(row - 0.5) * 240 - 30 - 10}px`;
+                pathGrid.appendChild(marker);
+            }
         }
-    }
-}
-
-/**
- * Generate grid positions for the cards in a left-to-right pattern with random vertical variations
- */
-function generateGridPositions(cardCount) {
-    const positions = [];
-    
-    // Start position (center of grid)
-    let col = 8; // Middle column
-    let row = 8; // Middle row as starting point
-    
-    positions.push({ col, row });
-    
-    // For all subsequent cards (after the entrance), move from left to right
-    if (cardCount > 1) {
-        // For card after entrance, ensure it's to the right
-        positions.push({ col: col + 1, row: row });
         
-        // Then for remaining cards
-        for (let i = 2; i < cardCount; i++) {
-            // Choose next direction randomly but favor rightward movement
-            const rand = Math.random();
+        // Generate positions for all cards
+        const gridPositions = generateGridPositions(gameState.currentPath.length);
+        
+        // Store positions in container data attribute for future reference
+        pathContainer.dataset.gridPositions = JSON.stringify(gridPositions);
+        
+        // Add all cards
+        gameState.currentPath.forEach((card, index) => {
+            const isLastCard = index === gameState.currentPath.length - 1 && index > 0;
+            const cardElement = createCardElement(card, isLastCard);
+            const pos = gridPositions[index];
             
-            let nextCol = positions[i-1].col;
-            let nextRow = positions[i-1].row;
+            // Set position and unique identifier
+            cardElement.style.gridColumn = `${pos.col} / span 1`;
+            cardElement.style.gridRow = `${pos.row} / span 1`;
+            cardElement.dataset.position = `${pos.col}-${pos.row}`;
+            cardElement.dataset.index = index;
+            cardElement.dataset.cardId = `card-${index}`;
             
-            if (rand < 0.5) {
-                // Go straight right (50% chance)
-                nextCol++;
-            } else if (rand < 0.75) {
-                // Go up-right (25% chance)
-                nextCol++;
-                nextRow--;
-            } else {
-                // Go down-right (25% chance)
-                nextCol++;
-                nextRow++;
+            pathGrid.appendChild(cardElement);
+            
+            // Add connection lines for all cards except the first
+            if (index > 0) {
+                const prevPos = gridPositions[index - 1];
+                drawConnectionLine(prevPos, pos, pathGrid);
+            }
+        });
+        
+        // Add zoom controls
+        if (!elementsMap.cavePath.querySelector('.zoom-controls')) {
+            const controls = createZoomControls();
+            elementsMap.cavePath.appendChild(controls);
+            
+            if (window.setupZoomControlEvents) {
+                window.setupZoomControlEvents(controls);
+            }
+        }
+    } else {
+        // Update existing path - this keeps cards in place
+        const pathGrid = existingPathContainer.querySelector('.path-grid');
+        
+        // Get stored positions
+        let storedPositions = [];
+        try {
+            storedPositions = JSON.parse(existingPathContainer.dataset.gridPositions || '[]');
+        } catch (e) {
+            console.error("Failed to parse stored positions:", e);
+        }
+        
+        // Check if we need to generate positions for new cards
+        if (storedPositions.length < gameState.currentPath.length) {
+            const newCardCount = gameState.currentPath.length - storedPositions.length;
+            const newPositions = [];
+            
+            // Generate positions for new cards, starting from the last known position
+            let lastPos = storedPositions.length > 0 
+                ? storedPositions[storedPositions.length - 1] 
+                : { col: 8, row: 8 }; // Default to center if no positions
+            
+            for (let i = 0; i < newCardCount; i++) {
+                // Generate a random direction for each new card
+                const rand = Math.random();
+                let newCol = lastPos.col;
+                let newRow = lastPos.row;
+                
+                if (rand < 0.5) {
+                    // Go right (50% chance)
+                    newCol++;
+                } else if (rand < 0.75) {
+                    // Go up-right (25% chance)
+                    newCol++;
+                    newRow--;
+                } else {
+                    // Go down-right (25% chance)
+                    newCol++;
+                    newRow++;
+                }
+                
+                // Keep within grid bounds
+                newRow = Math.max(2, Math.min(newRow, 14));
+                
+                const newPos = { col: newCol, row: newRow };
+                newPositions.push(newPos);
+                lastPos = newPos;
             }
             
-            // Make sure we stay within grid bounds (vertically)
-            nextRow = Math.max(2, Math.min(nextRow, 14));
-            
-            positions.push({ col: nextCol, row: nextRow });
+            // Add new positions to stored positions
+            const updatedPositions = [...storedPositions, ...newPositions];
+            existingPathContainer.dataset.gridPositions = JSON.stringify(updatedPositions);
+            storedPositions = updatedPositions;
         }
+        
+        // Update or add cards as needed
+        gameState.currentPath.forEach((card, index) => {
+            // Try to find existing card element
+            const existingCard = pathGrid.querySelector(`[data-card-id="card-${index}"]`);
+            
+            if (existingCard) {
+                // Card exists, update values if needed (for treasure/relic cards)
+                if (card.type === 'treasure' || card.type === 'relic') {
+                    const valueContainer = existingCard.querySelector('.card-value-container');
+                    if (valueContainer) {
+                        valueContainer.innerHTML = '';
+                        
+                        if (card.hasOwnProperty('originalValue')) {
+                            const originalValueElem = document.createElement('div');
+                            originalValueElem.className = 'card-original-value';
+                            originalValueElem.innerHTML = '<span class="value-label">Total:</span><span>' + card.originalValue + '</span>';
+                            valueContainer.appendChild(originalValueElem);
+                        }
+                        
+                        const valueElem = document.createElement('div');
+                        valueElem.className = 'card-value';
+                        if (card.type === 'treasure') {
+                            valueElem.innerHTML = '<span class="value-label">Remaining:</span><span>' + card.value + '</span>';
+                        } else {
+                            valueElem.innerHTML = '<span class="value-label">Value:</span><span>' + card.value + '</span>';
+                        }
+                        valueContainer.appendChild(valueElem);
+                    }
+                }
+            } else {
+                // Create new card
+                const isNewCard = index > 0; // All cards except entrance are "new" for animation
+                const cardElement = createCardElement(card, isNewCard);
+                const pos = storedPositions[index];
+                
+                if (!pos) {
+                    console.error(`No position found for card ${index}`);
+                    return;
+                }
+                
+                // Position card
+                cardElement.style.gridColumn = `${pos.col} / span 1`;
+                cardElement.style.gridRow = `${pos.row} / span 1`;
+                cardElement.dataset.position = `${pos.col}-${pos.row}`;
+                cardElement.dataset.index = index;
+                cardElement.dataset.cardId = `card-${index}`;
+                
+                // Add to grid
+                pathGrid.appendChild(cardElement);
+                
+                // Add connection line if not first card
+                if (index > 0) {
+                    const prevPos = storedPositions[index - 1];
+                    drawConnectionLine(prevPos, pos, pathGrid);
+                }
+            }
+        });
     }
-    
-    return positions;
 }
 
 /**
@@ -1695,40 +1719,40 @@ function initializeZoomPan() {
         isDragging = false;
     });
     
-    // Wheel event for zooming
+    // Wheel event for zooming - improved precision
     cavePath.addEventListener('wheel', (e) => {
         e.preventDefault();
         
-        // Determine zoom direction and factor
-        const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
-        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale + zoomDelta));
+        // Calculate zoom direction and amount
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1; // Smoother zoom steps
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * zoomFactor));
         
-        // Get mouse position and zoom at that point
-        const rect = cavePath.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        
-        zoomAtPoint(mouseX, mouseY, newScale);
+        if (newScale !== scale) {
+            // Get precise mouse position relative to the container
+            const rect = cavePath.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Apply zoom at the exact mouse position
+            zoomAtPoint(mouseX, mouseY, newScale);
+        }
     });
     
-    // Zoom centered at a specific point
+    // Zoom centered at a specific point - improved precision
     function zoomAtPoint(pointX, pointY, newScale) {
         if (!pathContainer) return;
         
-        // Calculate world coordinates of point before zoom
+        // Calculate point position in world space before zoom
         const worldX = (pointX - translateX) / scale;
         const worldY = (pointY - translateY) / scale;
         
-        // Set new scale
-        scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+        // Apply new scale
+        const oldScale = scale;
+        scale = newScale;
         
-        // Calculate new screen coordinates of same world point
-        const newScreenX = worldX * scale;
-        const newScreenY = worldY * scale;
-        
-        // Adjust translation to keep point under mouse
-        translateX = pointX - newScreenX;
-        translateY = pointY - newScreenY;
+        // Recalculate translation to keep the point under cursor
+        translateX = pointX - worldX * scale;
+        translateY = pointY - worldY * scale;
         
         updateTransform();
     }
@@ -1788,19 +1812,32 @@ function initializeZoomPan() {
         
         updateTransform();
     }
+
+    // Make these functions available globally
+    window.zoomAtPoint = zoomAtPoint;
+    window.focusOnElement = focusOnElement;
+    window.focusOnLatestCard = focusOnLatestCard;  
+    window.focusOnEntranceCard = focusOnEntranceCard;
+    window.updateTransform = updateTransform;
     
-    // Initial setup to ensure pathContainer is available immediately
+    // Update references
     pathContainer = cavePath.querySelector('.path-container');
     
-    // Override the existing updatePathDisplay to keep the zoom controls and path container reference
+    // Override the existing updatePathDisplay to maintain zoom state when revealing cards
     const originalUpdatePathDisplay = updatePathDisplay;
     window.updatePathDisplay = function() {
+        // Remember the current transform state
+        const previousScale = scale;
+        const previousTranslateX = translateX;
+        const previousTranslateY = translateY;
+        
+        // Update the display
         originalUpdatePathDisplay();
         
-        // Update path container reference after display update
+        // Get the updated path container reference
         pathContainer = cavePath.querySelector('.path-container');
         
-        // If first time showing path (just entrance card), center it
+        // If this is the initial path setup (only entrance card), center on it
         if (gameState.currentPath.length === 1) {
             resetView();
             setTimeout(() => {
@@ -1808,12 +1845,93 @@ function initializeZoomPan() {
                     window.focusOnEntranceCard();
                 }
             }, 50);
+        } 
+        // Otherwise restore the previous transform state
+        else {
+            scale = previousScale;
+            translateX = previousTranslateX;
+            translateY = previousTranslateY;
+            updateTransform();
+            
+            // If there's a new card, focus on it while preserving zoom level
+            if (gameState.currentPath.length > 1) {
+                setTimeout(() => {
+                    // Only scroll to new card, don't change zoom
+                    const lastCard = Array.from(pathContainer.querySelectorAll('.card')).pop();
+                    if (lastCard) {
+                        const containerRect = cavePath.getBoundingClientRect();
+                        const cardRect = lastCard.getBoundingClientRect();
+                        
+                        // Calculate the center of the viewport
+                        const viewportCenterX = containerRect.width / 2;
+                        const viewportCenterY = containerRect.height / 2;
+                        
+                        // Calculate the center of the card
+                        const cardCenterX = cardRect.left - containerRect.left + cardRect.width / 2;
+                        const cardCenterY = cardRect.top - containerRect.top + cardRect.height / 2;
+                        
+                        // Calculate the translation needed (just shifting, not changing zoom)
+                        translateX += (viewportCenterX - cardCenterX);
+                        translateY += (viewportCenterY - cardCenterY);
+                        
+                        updateTransform();
+                    }
+                }, 50);
+            }
         }
     };
     
-    // Force immediate focus on entrance card if it exists
+    // Initial focus on entrance card if it exists
     focusOnEntranceCard();
 }
 
 // Store initializeZoomPan in window to ensure it's accessible
 window.initializeZoomPan = initializeZoomPan;
+
+/**
+ * Generate grid positions for the cards in a left-to-right pattern with random vertical variations
+ */
+function generateGridPositions(cardCount) {
+    const positions = [];
+    
+    // Start position (center of grid)
+    const startCol = 8; // Middle column
+    const startRow = 8; // Middle row as starting point
+    
+    // Add the entrance card position
+    positions.push({ col: startCol, row: startRow });
+    
+    // For all subsequent cards (after the entrance), generate positions with random variations
+    let lastCol = startCol;
+    let lastRow = startRow;
+    
+    for (let i = 1; i < cardCount; i++) {
+        // Each card moves right but with random vertical movement
+        const rand = Math.random();
+        let newCol = lastCol + 1;  // Always move right
+        let newRow = lastRow;
+        
+        if (rand < 0.33) {
+            // Go up-right (33% chance)
+            newRow = lastRow - 1;
+        } else if (rand < 0.66) {
+            // Go straight right (33% chance)
+            // newRow stays the same
+        } else {
+            // Go down-right (33% chance)
+            newRow = lastRow + 1;
+        }
+        
+        // Make sure we stay within grid bounds (vertically)
+        newRow = Math.max(2, Math.min(newRow, 14));
+        
+        // Add the new position
+        positions.push({ col: newCol, row: newRow });
+        
+        // Update last position for next card
+        lastCol = newCol;
+        lastRow = newRow;
+    }
+    
+    return positions;
+}
