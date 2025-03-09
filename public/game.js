@@ -1111,14 +1111,14 @@ function createCardElement(card, isNewCard = false) {
             if (card.hasOwnProperty('originalValue')) {
                 const originalValueElem = document.createElement('div');
                 originalValueElem.className = 'card-original-value';
-                originalValueElem.innerHTML = '<span class="value-label">Total:</span><span>' + card.originalValue + '</span>';
+                originalValueElem.innerHTML = '<span class="value-label">Total</span><span>' + card.originalValue + '</span>';
                 cardValueContainer.appendChild(originalValueElem);
             }
             
             // Add current value
             const valueElem = document.createElement('div');
             valueElem.className = 'card-value';
-            valueElem.innerHTML = '<span class="value-label">Remaining:</span><span>' + card.value + '</span>';
+            valueElem.innerHTML = '<span class="value-label">Left</span><span>' + card.value + '</span>';
             cardValueContainer.appendChild(valueElem);
         }
         
@@ -1470,19 +1470,18 @@ function updatePathDisplay() {
             for (let i = 0; i < newCardCount; i++) {
                 // Generate a random direction for each new card
                 const rand = Math.random();
-                let newCol = lastPos.col;
+                // Always move 2 columns for 1-cell spacing between cards
+                let newCol = lastPos.col + 2;
                 let newRow = lastPos.row;
                 
                 if (rand < 0.5) {
                     // Go right (50% chance)
-                    newCol++;
+                    // newRow stays the same
                 } else if (rand < 0.75) {
                     // Go up-right (25% chance)
-                    newCol++;
                     newRow--;
                 } else {
                     // Go down-right (25% chance)
-                    newCol++;
                     newRow++;
                 }
                 
@@ -1515,16 +1514,16 @@ function updatePathDisplay() {
                         if (card.hasOwnProperty('originalValue')) {
                             const originalValueElem = document.createElement('div');
                             originalValueElem.className = 'card-original-value';
-                            originalValueElem.innerHTML = '<span class="value-label">Total:</span><span>' + card.originalValue + '</span>';
+                            originalValueElem.innerHTML = '<span class="value-label">Total</span><span>' + card.originalValue + '</span>';
                             valueContainer.appendChild(originalValueElem);
                         }
                         
                         const valueElem = document.createElement('div');
                         valueElem.className = 'card-value';
                         if (card.type === 'treasure') {
-                            valueElem.innerHTML = '<span class="value-label">Remaining:</span><span>' + card.value + '</span>';
+                            valueElem.innerHTML = '<span class="value-label">Left</span><span>' + card.value + '</span>';
                         } else {
-                            valueElem.innerHTML = '<span class="value-label">Value:</span><span>' + card.value + '</span>';
+                            valueElem.innerHTML = '<span class="value-label">Value</span><span>' + card.value + '</span>';
                         }
                         valueContainer.appendChild(valueElem);
                     }
@@ -1719,7 +1718,46 @@ function initializeZoomPan() {
         isDragging = false;
     });
     
-    // Wheel event for zooming - improved precision
+    // Helper function to find the grid cell at a specific point
+    function findGridCellAtPoint(clientX, clientY) {
+        if (!pathContainer) return null;
+        
+        const pathGrid = pathContainer.querySelector('.path-grid');
+        if (!pathGrid) return null;
+        
+        const rect = cavePath.getBoundingClientRect();
+        const mouseX = clientX - rect.left;
+        const mouseY = clientY - rect.top;
+        
+        // Convert mouse position to grid space (accounting for current transform)
+        const gridX = (mouseX - translateX) / scale;
+        const gridY = (mouseY - translateY) / scale;
+        
+        // Calculate grid cell (each cell is 140px with 10px gap, total 150px)
+        const cellSize = 150;
+        const col = Math.floor(gridX / cellSize) + 1;
+        const row = Math.floor(gridY / cellSize) + 1;
+        
+        // Ensure we're within grid bounds
+        if (col < 1 || col > 15 || row < 1 || row > 15) return null;
+        
+        // Calculate center point of the cell
+        const centerX = (col - 0.5) * cellSize;
+        const centerY = (row - 0.5) * cellSize;
+        
+        // Convert back to screen coordinates
+        const screenX = centerX * scale + translateX;
+        const screenY = centerY * scale + translateY;
+        
+        return {
+            col,
+            row,
+            centerX: screenX,
+            centerY: screenY
+        };
+    }
+    
+    // Wheel event for zooming - with grid-based focusing
     cavePath.addEventListener('wheel', (e) => {
         e.preventDefault();
         
@@ -1728,13 +1766,19 @@ function initializeZoomPan() {
         const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * zoomFactor));
         
         if (newScale !== scale) {
-            // Get precise mouse position relative to the container
-            const rect = cavePath.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            // Find the grid cell under the mouse cursor
+            const gridCell = findGridCellAtPoint(e.clientX, e.clientY);
             
-            // Apply zoom at the exact mouse position
-            zoomAtPoint(mouseX, mouseY, newScale);
+            if (gridCell) {
+                // Zoom centered on the grid cell
+                zoomAtPoint(gridCell.centerX, gridCell.centerY, newScale);
+            } else {
+                // Fall back to zooming at the exact mouse position if no grid cell is found
+                const rect = cavePath.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                zoomAtPoint(mouseX, mouseY, newScale);
+            }
         }
     });
     
@@ -1815,6 +1859,7 @@ function initializeZoomPan() {
 
     // Make these functions available globally
     window.zoomAtPoint = zoomAtPoint;
+    window.findGridCellAtPoint = findGridCellAtPoint;
     window.focusOnElement = focusOnElement;
     window.focusOnLatestCard = focusOnLatestCard;  
     window.focusOnEntranceCard = focusOnEntranceCard;
@@ -1890,6 +1935,7 @@ window.initializeZoomPan = initializeZoomPan;
 
 /**
  * Generate grid positions for the cards in a left-to-right pattern with random vertical variations
+ * Now with one-cell spacing between cards to avoid crowding
  */
 function generateGridPositions(cardCount) {
     const positions = [];
@@ -1901,14 +1947,15 @@ function generateGridPositions(cardCount) {
     // Add the entrance card position
     positions.push({ col: startCol, row: startRow });
     
-    // For all subsequent cards (after the entrance), generate positions with random variations
+    // For all subsequent cards (after the entrance), generate positions with spacing
     let lastCol = startCol;
     let lastRow = startRow;
     
     for (let i = 1; i < cardCount; i++) {
         // Each card moves right but with random vertical movement
+        // Add 2 to column to ensure one empty cell between cards
         const rand = Math.random();
-        let newCol = lastCol + 1;  // Always move right
+        let newCol = lastCol + 2;  // Always move right with one cell gap
         let newRow = lastRow;
         
         if (rand < 0.33) {

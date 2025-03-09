@@ -26,30 +26,34 @@
                 <div class="cave-entrance"></div>
             </div>
 
-            <div class="controls-area">
-                <div class="streamer-controls">
-                    <h3>Expedition Controls</h3>
-                    <button id="start-game" class="primary-btn">Begin Expedition</button>
-                    <button id="reveal-card" class="primary-btn" disabled>Reveal Discovery</button>
-                    <button id="join-grandmaster" class="grandmaster-btn">Join as Grandmaster</button>
-                    <div class="timer-container">
-                        <div id="timer-bar" class="timer-bar"></div>
-                        <span id="timer-text">30s</span>
+            <div class="side-area">
+                <div class="side-container">
+                    <div class="player-list">
+                        <h3>Adventuring Party (<span id="active-players">0</span> active)</h3>
+                        <div id="players-container"></div>
                     </div>
-                </div>
+                    <div class="controls-area">
+                        
+                        <div class="streamer-controls">
+                            <h3>Expedition Controls</h3>
+                            <button id="start-game" class="primary-btn">Begin Expedition</button>
+                            <button id="reveal-card" class="primary-btn" disabled>Reveal Discovery</button>
+                            <button id="join-grandmaster" class="grandmaster-btn">Join as Grandmaster</button>
+                            <div class="timer-container">
+                                <div id="timer-bar" class="timer-bar"></div>
+                                <span id="timer-text">30s</span>
+                            </div>
+                        </div>
 
-                <div class="game-status">
-                    <h3>Adventure Log</h3>
-                    <div id="game-message" class="game-message">Awaiting brave explorers...</div>
-                    <div id="game-log"></div>
-                </div>
-            </div>
-        </div>
+                        <div class="game-status">
+                            <h3>Adventure Log</h3>
+                            <div id="game-message" class="game-message">Awaiting brave explorers...</div>
+                            <div id="game-log"></div>
+                        </div>
+                    </div>
 
-        <div class="bottom-area">
-            <div class="player-list">
-                <h3>Adventuring Party (<span id="active-players">0</span> active)</h3>
-                <div id="players-container"></div>
+
+                </div>
             </div>
         </div>
     </div>
