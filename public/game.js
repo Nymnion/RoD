@@ -464,12 +464,6 @@ function processCardEffects(card) {
         if (gameState.revealedTraps[card.trapType] >= 2) {
             addLogEntry(`DANGER! A second ${card.trapType} trap appears!`, 'danger');
             
-            // First, give players a chance to make a decision
-            updateGameMessage(`DANGER! A second ${card.trapType} trap appears! You have 15 seconds to type !roach to escape before the trap springs!`);
-            
-            // Start decision phase to give players a chance to escape
-            startDecisionPhase();
-            
             // Activate the trap after the decision phase
             gameState.pendingTrapType = card.trapType;
             
@@ -839,6 +833,11 @@ function playerDecision(username, decision) {
     
     // Check if player exists and is in the cave
     if (!player || !player.inCave) {
+        return;
+    }
+
+    if(gameState.pendingTrapType) {
+        addLogEntry(`${username} tried to roach after a trap has been sprung. 😎💿`, 'warning');
         return;
     }
     
