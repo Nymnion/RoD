@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize game state
     updateGameMessage('Welcome to Diamant! Click "Start New Game" to begin.');
+    
+    // Initialize zoom and pan functionality
+    initializeZoomPan();
 });
 
 /**
@@ -314,55 +317,6 @@ function shuffleDeck(deck) {
 }
 
 /**
- * Reveal the first card, ensuring it's never a trap
- */
-function revealFirstCard() {
-    console.log("Revealing first card (guaranteed not to be a trap)...");
-    
-    if (gameState.deck.length === 0) {
-        addLogEntry("The deck is empty!", "warning");
-        startNextRound();
-        return;
-    }
-    
-    // Find the first non-trap card in the deck
-    let cardIndex = -1;
-    for (let i = 0; i < gameState.deck.length; i++) {
-        if (gameState.deck[i].type !== 'trap') {
-            cardIndex = i;
-            break;
-        }
-    }
-    
-    // If no non-trap card found, create a treasure card
-    let card;
-    if (cardIndex === -1) {
-        console.log("No non-trap cards found in deck, creating a treasure card");
-        const playerCount = Object.keys(gameState.players).length;
-        const treasureValue = Math.max(5, playerCount * 2); // Decent starting treasure
-        card = { type: 'treasure', value: treasureValue };
-    } else {
-        // Remove the non-trap card from the deck
-        card = gameState.deck.splice(cardIndex, 1)[0];
-    }
-    
-    // Add the card to the path
-    gameState.currentPath.push(card);
-    
-    // Create and add the card element to the path
-    const cardElement = createCardElement(card);
-    if (elementsMap.cavePath) {
-        elementsMap.cavePath.appendChild(cardElement);
-    }
-    
-    // Process the card effects
-    processCardEffects(card);
-    
-    // Start decision phase automatically after revealing a card
-    startDecisionPhase();
-}
-
-/**
  * Reveal the next card from the deck
  */
 function revealNextCard() {
@@ -402,11 +356,100 @@ function revealNextCard() {
     const card = gameState.deck.pop();
     gameState.currentPath.push(card);
     
-    // Create and add the card element to the path
-    const cardElement = createCardElement(card);
-    if (elementsMap.cavePath) {
-        elementsMap.cavePath.appendChild(cardElement);
+    // Process the card effects
+    processCardEffects(card);
+    
+    // Start decision phase automatically after revealing a card
+    startDecisionPhase();
+}
+
+/**
+ * Reveal the first card, ensuring it's never a trap
+ */
+function revealFirstCard() {
+    console.log("Revealing first card (guaranteed not to be a trap)...");
+    
+    if (gameState.deck.length === 0) {
+        addLogEntry("The deck is empty!", "warning");
+        startNextRound();
+        return;
     }
+    
+    // Find the first non-trap card in the deck
+    let cardIndex = -1;
+    for (let i = 0; i < gameState.deck.length; i++) {
+        if (gameState.deck[i].type !== 'trap') {
+            cardIndex = i;
+            break;
+        }
+    }
+    
+    // If no non-trap card found, create a treasure card
+    let card;
+    if (cardIndex === -1) {
+        console.log("No non-trap cards found in deck, creating a treasure card");
+        const playerCount = Object.keys(gameState.players).length;
+        const treasureValue = Math.max(5, playerCount * 2); // Decent starting treasure
+        card = { type: 'treasure', value: treasureValue };
+    } else {
+        // Remove the non-trap card from the deck
+        card = gameState.deck.splice(cardIndex, 1)[0];
+    }
+    
+    // Add the card to the path
+    gameState.currentPath.push(card);
+    
+    // Process the card effects
+    processCardEffects(card);
+    
+    // Update the path display
+    updatePathDisplay();
+    
+    // Start decision phase automatically after revealing a card
+    startDecisionPhase();
+}
+
+// Now implement the enhanced versions that extend the original functions
+// (These will properly override the functions above since they're already defined)
+
+/**
+ * Extended version of revealFirstCard with map layout logic
+ */
+function enhancedRevealFirstCard() {
+    console.log("Revealing first card with map layout (guaranteed not to be a trap)...");
+    
+    if (gameState.deck.length === 0) {
+        addLogEntry("The deck is empty!", "warning");
+        startNextRound();
+        return;
+    }
+    
+    // Find the first non-trap card in the deck
+    let cardIndex = -1;
+    for (let i = 0; i < gameState.deck.length; i++) {
+        if (gameState.deck[i].type !== 'trap') {
+            cardIndex = i;
+            break;
+        }
+    }
+    
+    // If no non-trap card found, create a treasure card
+    let card;
+    if (cardIndex === -1) {
+        console.log("No non-trap cards found in deck, creating a treasure card");
+        const playerCount = Object.keys(gameState.players).length;
+        const treasureValue = Math.max(5, playerCount * 2); // Decent starting treasure
+        card = { type: 'treasure', value: treasureValue };
+    } else {
+        // Remove the non-trap card from the deck
+        card = gameState.deck.splice(cardIndex, 1)[0];
+    }
+    
+    // Add the card to the path
+    gameState.currentPath.push(card);
+    
+    // Update the path display
+    updatePathDisplay();
     
     // Process the card effects
     processCardEffects(card);
@@ -414,6 +457,61 @@ function revealNextCard() {
     // Start decision phase automatically after revealing a card
     startDecisionPhase();
 }
+
+/**
+ * Extended version of revealNextCard with map layout logic
+ */
+function enhancedRevealNextCard() {
+    console.log("Revealing next card with map layout...");
+    
+    if (gameState.deck.length === 0) {
+        addLogEntry("The deck is empty!", "warning");
+        startNextRound();
+        return;
+    }
+    
+    // Check if there are any players in the cave
+    const playersInCave = Object.values(gameState.players).filter(p => p.inCave);
+    if (playersInCave.length === 0) {
+        addLogEntry("All players have left the cave!", "warning");
+        startNextRound();
+        return;
+    }
+    
+    // Disable reveal card button during card reveal
+    if (elementsMap.revealCardBtn) {
+        elementsMap.revealCardBtn.disabled = true;
+        
+        // Change button text to "Reveal Next Card" after first card
+        if (gameState.currentPath.length === 0) {
+            elementsMap.revealCardBtn.textContent = 'Reveal Next Card';
+        }
+    }
+    
+    // If this is the first card, use revealFirstCard to ensure it's not a trap
+    if (gameState.currentPath.length === 0) {
+        enhancedRevealFirstCard();
+        return;
+    }
+    
+    // Reveal the next card
+    const card = gameState.deck.pop();
+    gameState.currentPath.push(card);
+    
+    // Process the card effects
+    processCardEffects(card);
+    
+    // Update the entire path display
+    updatePathDisplay();
+    
+    // Start decision phase automatically after revealing a card
+    startDecisionPhase();
+}
+
+// Replace the original functions with the enhanced versions
+// Do this after both functions are defined and the enhanced versions are created
+revealFirstCard = enhancedRevealFirstCard;
+revealNextCard = enhancedRevealNextCard;
 
 /**
  * Process the effects of a revealed card
@@ -866,46 +964,160 @@ function createCardElement(card) {
     // Set card type class
     cardElement.classList.add(`${card.type}-card`);
     
+    if (card.type === 'trap') {
+        cardElement.classList.add(`trap-${card.trapType}`);
+    }
+    
     // Set card content
-    const titleElement = cardElement.querySelector('.card-title');
-    const imageElement = cardElement.querySelector('.card-image');
-    const valueElement = cardElement.querySelector('.card-value');
+    const cardTitle = cardElement.querySelector('.card-title');
+    const cardImage = cardElement.querySelector('.card-image');
+    const cardValueContainer = cardElement.querySelector('.card-value-container');
     
     if (card.type === 'treasure') {
-        if (titleElement) {
-            // Show original value if available, but keep it short
-            if (card.hasOwnProperty('originalValue')) {
-                titleElement.textContent = `Treasure (${card.originalValue})`;
-                // Add title attribute for hover tooltip with full text
-                titleElement.title = `Treasure (${card.originalValue})`;
-            } else {
-                titleElement.textContent = 'Treasure';
-                titleElement.title = 'Treasure';
-            }
+        // Set title
+        if (cardTitle) {
+            cardTitle.textContent = 'Treasure';
+            cardTitle.title = 'Treasure'; // Add title attribute for hover tooltip
         }
         
-        if (valueElement) {
-            // Show remaining gold
-            valueElement.textContent = `${card.value} gold`;
+        // Set Lucide treasure icon
+        if (cardImage) {
+            cardImage.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+            `;
+        }
+        
+        // Clear any previous values
+        if (cardValueContainer) {
+            cardValueContainer.innerHTML = '';
+            
+            // Add original value if available
+            if (card.hasOwnProperty('originalValue')) {
+                const originalValueElem = document.createElement('div');
+                originalValueElem.className = 'card-original-value';
+                originalValueElem.innerHTML = '<span class="value-label">Total:</span><span>' + card.originalValue + '</span>';
+                cardValueContainer.appendChild(originalValueElem);
+            }
+            
+            // Add current value
+            const valueElem = document.createElement('div');
+            valueElem.className = 'card-value';
+            valueElem.innerHTML = '<span class="value-label">Remaining:</span><span>' + card.value + '</span>';
+            cardValueContainer.appendChild(valueElem);
         }
         
         // Store original and current values as data attributes for animations
         cardElement.dataset.originalValue = card.originalValue || card.value;
         cardElement.dataset.currentValue = card.value;
+        
     } else if (card.type === 'trap') {
-        if (titleElement) {
+        if (cardTitle) {
             const trapName = `${card.trapType.charAt(0).toUpperCase() + card.trapType.slice(1)} Trap`;
-            titleElement.textContent = trapName;
-            titleElement.title = trapName; // Add title attribute for hover tooltip
+            cardTitle.textContent = trapName;
+            cardTitle.title = trapName; // Add title attribute for hover tooltip
         }
-        cardElement.classList.add(`trap-${card.trapType}`);
+        
+        // Set trap icons based on trap type
+        if (cardImage) {
+            let iconSvg = '';
+            
+            switch (card.trapType) {
+                case 'snake':
+                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m20 16-4-4 4-4"></path>
+                        <path d="M4 8a4 4 0 0 1 8 0c0 4.5 5 4.5 5 8a4 4 0 0 1-8 0"></path>
+                    </svg>`;
+                    break;
+                case 'spider':
+                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 2a4 4 0 0 0-4 4v1h8V2M17 2a4 4 0 0 1 4 4v1h-8V2M15 3h-6a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1ZM7.5 9h-5A4.5 4.5 0 0 0 1 10.5a2.5 2.5 0 0 0 5 0 8 8 0 0 1 16 0 2.5 2.5 0 0 0 5 0A4.5 4.5 0 0 0 21.5 9h-5"></path>
+                        <path d="M16 11a4 4 0 0 1-8 0"></path>
+                    </svg>`;
+                    break;
+                case 'lava':
+                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2c.39 2.61 2.61 4.61 5 5-.39 2.61-2.61 4.61-5 5-.39-2.61-2.61-4.61-5-5 .39-2.61 2.61-4.61 5-5Z"></path>
+                        <path d="M18 8c.55 3.67 3.67 6.67 7 7-.55 3.67-3.67 6.67-7 7-.55-3.67-3.67-6.67-7-7 .55-3.67 3.67-6.67 7-7Z"></path>
+                        <path d="M5 13c.39 2.61 2.61 4.61 5 5-.39 2.61-2.61 4.61-5 5-.39-2.61-2.61-4.61-5-5 .39-2.61 2.61-4.61 5-5Z"></path>
+                    </svg>`;
+                    break;
+                case 'rockfall':
+                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m21 12-6-6h-4L3 14v4h18v-6Z"></path>
+                        <path d="M16 8h-4L6 14v4h16v-6l-6-4Z"></path>
+                        <path d="M6 18v4"></path>
+                        <path d="M22 18v4"></path>
+                        <path d="m14 19-9 3"></path>
+                        <path d="m19 19 9 3"></path>
+                    </svg>`;
+                    break;
+                case 'poison':
+                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 3v3"></path>
+                        <path d="M14 3v3"></path>
+                        <path d="M9 13v3"></path>
+                        <path d="M15 13v3"></path>
+                        <path d="M11 19v2"></path>
+                        <path d="M13 19v2"></path>
+                        <path d="M18 3l-2 3"></path>
+                        <path d="M6 3l2 3"></path>
+                        <path d="M20 9l-1 2"></path>
+                        <path d="M5 9l1 2"></path>
+                        <path d="M18 14l2 1"></path>
+                        <path d="m4 14 2 1"></path>
+                        <circle cx="12" cy="12" r="4"></circle>
+                        <path d="M12 8v8"></path>
+                        <path d="M8 12h8"></path>
+                    </svg>`;
+                    break;
+                default:
+                    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m8.5 14.5-5-5 5-5"></path>
+                        <path d="m15.5 4.5 5 5-5 5"></path>
+                        <path d="M14.5 19.5 12 22l-2.5-2.5"></path>
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+                    </svg>`;
+            }
+            
+            cardImage.innerHTML = iconSvg;
+        }
+        
+        // Clear value container for traps
+        if (cardValueContainer) {
+            cardValueContainer.innerHTML = '';
+            const warningElem = document.createElement('div');
+            warningElem.className = 'card-value danger';
+            warningElem.innerHTML = '<span>DANGER</span>';
+            cardValueContainer.appendChild(warningElem);
+        }
+        
     } else if (card.type === 'relic') {
-        if (titleElement) {
-            titleElement.textContent = 'Relic';
-            titleElement.title = 'Relic';
+        if (cardTitle) {
+            cardTitle.textContent = 'Relic';
+            cardTitle.title = 'Ancient Relic'; // Add title attribute for hover tooltip
         }
-        if (valueElement) {
-            valueElement.textContent = `${card.value} gold`;
+        
+        // Set relic icon
+        if (cardImage) {
+            cardImage.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 12h8"></path>
+                    <path d="M12 16V8"></path>
+                </svg>
+            `;
+        }
+        
+        // Clear any previous values
+        if (cardValueContainer) {
+            cardValueContainer.innerHTML = '';
+            const valueElem = document.createElement('div');
+            valueElem.className = 'card-value';
+            valueElem.innerHTML = '<span class="value-label">Value:</span><span>' + card.value + '</span>';
+            cardValueContainer.appendChild(valueElem);
         }
     }
     
@@ -1100,30 +1312,323 @@ function updatePathDisplay() {
         return;
     }
     
-    // Get all card elements
-    const cardElements = elementsMap.cavePath.querySelectorAll('.card');
+    // Clear previous path
+    elementsMap.cavePath.innerHTML = '';
     
-    // Update each card's value display
+    // Add cave entrance
+    const caveEntrance = document.createElement('div');
+    caveEntrance.className = 'cave-entrance';
+    elementsMap.cavePath.appendChild(caveEntrance);
+    
+    if (gameState.currentPath.length === 0) {
+        return;
+    }
+    
+    // Create path container
+    const pathContainer = document.createElement('div');
+    pathContainer.className = 'path-container';
+    elementsMap.cavePath.appendChild(pathContainer);
+    
+    // Create grid for the cards
+    const pathGrid = document.createElement('div');
+    pathGrid.className = 'path-grid';
+    pathContainer.appendChild(pathGrid);
+    
+    // Generate a zigzag path layout
+    // Start from the bottom center and move upward
+    const gridPositions = generateGridPositions(gameState.currentPath.length);
+    
+    // Add cards to their grid positions
     gameState.currentPath.forEach((card, index) => {
-        if (index < cardElements.length) {
-            const cardElement = cardElements[index];
-            
-            if (card.type === 'treasure') {
-                // Update title with original value if available
-                const titleElement = cardElement.querySelector('.card-title');
-                if (titleElement && card.hasOwnProperty('originalValue')) {
-                    titleElement.textContent = `Treasure (${card.originalValue})`;
-                }
-                
-                // Update value display
-                const valueElement = cardElement.querySelector('.card-value');
-                if (valueElement) {
-                    valueElement.textContent = `${card.value} gold`;
-                }
-                
-                // Update data attributes
-                cardElement.dataset.currentValue = card.value;
-            }
+        const cardElement = createCardElement(card);
+        const pos = gridPositions[index];
+        
+        // Position the card
+        cardElement.style.gridColumn = `${pos.col} / span 1`;
+        cardElement.style.gridRow = `${pos.row} / span 1`;
+        cardElement.dataset.position = `${pos.col}-${pos.row}`;
+        
+        pathGrid.appendChild(cardElement);
+    });
+    
+    // Add the connecting lines
+    for (let i = 1; i < gridPositions.length; i++) {
+        const prevPos = gridPositions[i - 1];
+        const currentPos = gridPositions[i];
+        
+        drawConnectionLine(prevPos, currentPos, pathGrid);
+    }
+    
+    // Add zoom controls (they will be appended by the initializeZoomPan function)
+}
+
+/**
+ * Generate grid positions for the cards in a zigzag pattern within a much larger grid
+ */
+function generateGridPositions(cardCount) {
+    const positions = [];
+    
+    // Start position (center of grid)
+    let col = 8;
+    let row = 10;
+    
+    positions.push({ col, row });
+    
+    // Directions: 0 = up, 1 = up-right, 2 = up-left
+    let direction = 0;
+    
+    for (let i = 1; i < cardCount; i++) {
+        // Choose next direction
+        if (i % 3 === 0) {
+            direction = 0; // Go straight up every 3rd card
+        } else {
+            // Alternate between right and left
+            direction = (i % 2 === 0) ? 2 : 1;
+        }
+        
+        // Apply direction
+        switch (direction) {
+            case 0: // up
+                row--;
+                break;
+            case 1: // up-right
+                row--;
+                col++;
+                break;
+            case 2: // up-left
+                row--;
+                col--;
+                break;
+        }
+        
+        // Make sure we stay within grid bounds
+        col = Math.max(1, Math.min(col, 15));
+        
+        positions.push({ col, row });
+    }
+    
+    return positions;
+}
+
+/**
+ * Draw a connecting line between two card positions
+ */
+function drawConnectionLine(pos1, pos2, gridContainer) {
+    const connection = document.createElement('div');
+    connection.className = 'path-connection';
+    
+    // Calculate the center points of the start and end positions
+    // Each grid cell is 160px wide and 180px tall with 60px gap
+    const x1 = (pos1.col - 0.5) * 220 - 30;
+    const y1 = (pos1.row - 0.5) * 240 - 30;
+    const x2 = (pos2.col - 0.5) * 220 - 30;
+    const y2 = (pos2.row - 0.5) * 240 - 30;
+    
+    // Calculate the angle and length of the line
+    const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+    const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    
+    // Position and rotate the line
+    connection.style.width = `${length}px`;
+    connection.style.height = '4px';
+    connection.style.top = `${y1}px`;
+    connection.style.left = `${x1}px`;
+    connection.style.transformOrigin = '0 0';
+    connection.style.transform = `rotate(${angle}deg)`;
+    
+    gridContainer.appendChild(connection);
+}
+
+/**
+ * Set up zoom and pan functionality for the cave path
+ */
+function initializeZoomPan() {
+    const cavePath = elementsMap.cavePath;
+    if (!cavePath) return;
+    
+    let pathContainer = null;
+    let isDragging = false;
+    let startX, startY, scrollLeft, scrollTop;
+    let scale = 1;
+    const MIN_SCALE = 0.2;
+    const MAX_SCALE = 5;
+    let currentMapPosition = { x: 0, y: 0 };
+    
+    // Create zoom controls (initially hidden)
+    const zoomControls = document.createElement('div');
+    zoomControls.className = 'zoom-controls';
+    zoomControls.innerHTML = `
+        <button class="zoom-btn zoom-in">+</button>
+        <button class="zoom-btn zoom-reset">↺</button>
+        <button class="zoom-btn zoom-out">-</button>
+    `;
+    cavePath.appendChild(zoomControls);
+    
+    // Function to show zoom controls when game starts
+    function showZoomControls() {
+        zoomControls.classList.add('visible');
+    }
+    
+    // Override startGame to show zoom controls when game starts
+    const originalStartGame = startGame;
+    startGame = function() {
+        originalStartGame.apply(this, arguments);
+        showZoomControls();
+    };
+    
+    // Set up zoom control event listeners
+    zoomControls.querySelector('.zoom-in').addEventListener('click', () => {
+        if (scale < MAX_SCALE) {
+            scale = Math.min(scale + 0.2, MAX_SCALE);
+            updateZoom();
         }
     });
+    
+    zoomControls.querySelector('.zoom-out').addEventListener('click', () => {
+        if (scale > MIN_SCALE) {
+            scale = Math.max(scale - 0.2, MIN_SCALE);
+            updateZoom();
+        }
+    });
+    
+    zoomControls.querySelector('.zoom-reset').addEventListener('click', () => {
+        scale = 1;
+        if (pathContainer) {
+            pathContainer.style.transform = `scale(${scale})`;
+            centerPath();
+        }
+    });
+    
+    // Wheel event for zooming
+    cavePath.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY * -0.002;
+        const oldScale = scale;
+        scale = Math.min(Math.max(scale + delta, MIN_SCALE), MAX_SCALE);
+        
+        // Only update if scale changed
+        if (oldScale !== scale) {
+            updateZoom();
+        }
+    });
+    
+    // Mouse events for panning
+    cavePath.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.zoom-controls')) return;
+        
+        isDragging = true;
+        startX = e.pageX - cavePath.offsetLeft;
+        startY = e.pageY - cavePath.offsetTop;
+        scrollLeft = cavePath.scrollLeft;
+        scrollTop = cavePath.scrollTop;
+        currentMapPosition = { x: scrollLeft, y: scrollTop };
+        cavePath.style.cursor = 'grabbing';
+    });
+    
+    cavePath.addEventListener('mouseleave', () => {
+        isDragging = false;
+        cavePath.style.cursor = 'grab';
+    });
+    
+    cavePath.addEventListener('mouseup', () => {
+        isDragging = false;
+        cavePath.style.cursor = 'grab';
+    });
+    
+    cavePath.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        
+        const x = e.pageX - cavePath.offsetLeft;
+        const y = e.pageY - cavePath.offsetTop;
+        const walkX = (x - startX) * 1;
+        const walkY = (y - startY) * 1;
+        
+        cavePath.scrollLeft = scrollLeft - walkX;
+        cavePath.scrollTop = scrollTop - walkY;
+        currentMapPosition = { x: cavePath.scrollLeft, y: cavePath.scrollTop };
+    });
+    
+    // Touch events for mobile
+    cavePath.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.zoom-controls')) return;
+        
+        isDragging = true;
+        startX = e.touches[0].pageX - cavePath.offsetLeft;
+        startY = e.touches[0].pageY - cavePath.offsetTop;
+        scrollLeft = cavePath.scrollLeft;
+        scrollTop = cavePath.scrollTop;
+        currentMapPosition = { x: scrollLeft, y: scrollTop };
+    });
+    
+    cavePath.addEventListener('touchend', () => {
+        isDragging = false;
+    });
+    
+    cavePath.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        
+        const x = e.touches[0].pageX - cavePath.offsetLeft;
+        const y = e.touches[0].pageY - cavePath.offsetTop;
+        const walkX = (x - startX) * 1;
+        const walkY = (y - startY) * 1;
+        
+        cavePath.scrollLeft = scrollLeft - walkX;
+        cavePath.scrollTop = scrollTop - walkY;
+        currentMapPosition = { x: cavePath.scrollLeft, y: cavePath.scrollTop };
+    });
+    
+    // Update zoom function
+    function updateZoom() {
+        if (!pathContainer) return;
+        pathContainer.style.transform = `scale(${scale})`;
+    }
+    
+    // Initial centering of the path container
+    function centerPath() {
+        if (!pathContainer) return;
+        const pathRect = pathContainer.getBoundingClientRect();
+        const caveRect = cavePath.getBoundingClientRect();
+        
+        cavePath.scrollLeft = (pathRect.width - caveRect.width) / 2;
+        cavePath.scrollTop = (pathRect.height - caveRect.height) / 2;
+        currentMapPosition = { x: cavePath.scrollLeft, y: cavePath.scrollTop };
+    }
+    
+    // Function to restore map position after updates
+    function restoreMapPosition() {
+        if (cavePath && currentMapPosition) {
+            cavePath.scrollLeft = currentMapPosition.x;
+            cavePath.scrollTop = currentMapPosition.y;
+        }
+    }
+    
+    // Override updatePathDisplay to keep map position
+    const originalUpdatePathDisplay = updatePathDisplay;
+    updatePathDisplay = function() {
+        // Save current position and scale
+        const saveScale = scale;
+        const savePosition = { ...currentMapPosition };
+        
+        // Update the path
+        originalUpdatePathDisplay();
+        
+        // Get new path container reference
+        pathContainer = cavePath.querySelector('.path-container');
+        
+        // Set scale
+        if (pathContainer && saveScale !== 1) {
+            pathContainer.style.transform = `scale(${saveScale})`;
+        }
+        
+        // Restore position if not the first display
+        if (gameState.currentPath.length > 1) {
+            currentMapPosition = savePosition;
+            setTimeout(restoreMapPosition, 50); // Small delay to ensure DOM update
+        } else {
+            // Initial centering only on first card
+            setTimeout(centerPath, 50);
+        }
+    };
 }

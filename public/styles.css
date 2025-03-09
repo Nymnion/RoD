@@ -25,8 +25,8 @@ body {
     grid-template-rows: auto minmax(0, 1fr) auto;
     width: 100%;
     height: 100vh;
-    padding: 20px;
-    gap: 16px;
+    padding: 15px;
+    gap: 12px;
     overflow: hidden;
     background: linear-gradient(to bottom, rgba(38, 26, 22, 0.9), rgba(32, 22, 18, 0.95));
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
@@ -83,47 +83,79 @@ body {
 /* Main Game Area */
 .main-area {
     display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    gap: 20px;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 12px;
     height: 100%;
     min-height: 0;
     overflow: hidden;
     flex: 1;
 }
 
-/* Cave Path */
+/* Cave Path - Redesigned as a zoomable/pannable infinite map */
 .cave-path {
     display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    gap: 12px;
-    padding: 20px;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
     background: linear-gradient(to bottom, #201714, #1a110e);
-    overflow-y: auto;
+    overflow: auto;
     height: 100%;
     min-height: 0;
+    max-height: none;
     border: 2px solid #8e7d5b;
     box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
     position: relative;
+    cursor: grab;
+}
+
+.cave-path:active {
+    cursor: grabbing;
 }
 
 .cave-entrance {
     position: absolute;
-    bottom: 10px;
-    left: 10px;
+    bottom: 30px;
+    left: calc(50% - 30px);
     width: 60px;
     height: 90px;
     background: radial-gradient(ellipse at center, rgba(20, 12, 8, 0.9) 0%, rgba(10, 6, 4, 0) 70%);
     opacity: 0.6;
     z-index: 0;
+    pointer-events: none;
 }
 
-/* Cards */
+.path-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform-origin: center;
+    transition: transform 0.1s ease;
+    position: relative;
+    min-width: 1500px;
+    min-height: 1500px;
+}
+
+.path-grid {
+    display: grid;
+    grid-template-columns: repeat(15, 160px);
+    grid-template-rows: repeat(15, 180px);
+    gap: 60px;
+    position: relative;
+}
+
+/* Path connections */
+.path-connection {
+    position: absolute;
+    background-color: #8e7d5b;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Cards - Using only Lucide icons */
 .card {
-    width: 120px;
-    height: 180px;
-    margin: 5px;
-    border-radius: 8px;
+    width: 140px;
+    height: 140px;
+    border-radius: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -137,22 +169,32 @@ body {
     border: 1px solid rgba(182, 155, 104, 0.5);
     z-index: 2;
     transition: transform 0.3s, box-shadow 0.3s;
+    grid-column: span 1;
+    grid-row: span 1;
 }
 
 .card:hover {
     transform: translateY(-5px) scale(1.05);
     box-shadow: 0 12px 20px rgba(0, 0, 0, 0.5);
+    z-index: 10;
 }
 
 .card-content {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
     align-items: center;
-    justify-content: space-between;
+    justify-items: center;
     height: 100%;
     width: 100%;
-    padding: 12px 6px;
+    padding: 10px 8px;
     position: relative;
+}
+
+.card-header {
+    width: 100%;
+    text-align: center;
+    position: relative;
+    margin-bottom: 5px;
 }
 
 .card-title {
@@ -160,38 +202,71 @@ body {
     font-family: 'Metamorphous', serif;
     font-weight: bold;
     text-align: center;
-    margin-bottom: 5px;
     width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding: 3px 4px;
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
+    padding: 3px 5px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 3px;
     letter-spacing: 0.5px;
 }
 
+.card-image-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    position: relative;
+    margin: 8px 0;
+}
+
 .card-image {
-    font-size: 38px;
-    margin: 5px 0;
+    width: 50px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 60px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
 }
 
+.card-image svg {
+    width: 100%;
+    height: 100%;
+    stroke-width: 1.5;
+}
+
+/* Remove all old card image styles that use background-image */
+.treasure-card .card-image,
+.trap-snake .card-image,
+.trap-spider .card-image,
+.trap-lava .card-image,
+.trap-rockfall .card-image,
+.trap-poison .card-image,
+.relic-card .card-image {
+    background-image: none;
+}
+
+.card-value-container {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3px;
+}
+
+.card-original-value,
 .card-value {
-    font-size: 22px;
+    font-size: 12px;
     font-weight: bold;
     font-family: 'Cinzel', serif;
-    margin-top: 5px;
-    padding: 5px 10px;
+    padding: 2px 4px;
     background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    min-width: 80px;
+    border-radius: 3px;
     text-align: center;
-    border: 1px solid rgba(182, 155, 104, 0.5);
+    border: 1px solid rgba(182, 155, 104, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 /* Treasure Cards */
@@ -204,10 +279,9 @@ body {
 .treasure-card .card-content::after {
     content: "";
     position: absolute;
-    width: 30px;
-    height: 30px;
+    width: 20px;
+    height: 20px;
     border: 2px solid rgba(255, 217, 90, 0.4);
-    border-radius: 50%;
     opacity: 0.4;
 }
 
@@ -256,7 +330,7 @@ body {
     position: absolute;
     top: 5px;
     right: 5px;
-    font-size: 14px;
+    font-size: 12px;
     opacity: 0.8;
 }
 
@@ -266,34 +340,11 @@ body {
     color: #66ccff;
 }
 
-.relic-card .card-content::before,
-.relic-card .card-content::after {
-    content: "";
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    opacity: 0.4;
-}
-
-.relic-card .card-content::before {
-    top: 8px;
-    left: 8px;
-    border-top: 2px solid rgba(102, 204, 255, 0.7);
-    border-left: 2px solid rgba(102, 204, 255, 0.7);
-}
-
-.relic-card .card-content::after {
-    bottom: 8px;
-    right: 8px;
-    border-bottom: 2px solid rgba(102, 204, 255, 0.7);
-    border-right: 2px solid rgba(102, 204, 255, 0.7);
-}
-
 /* Controls Area */
 .controls-area {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
     height: 100%;
     min-height: 0;
     overflow: hidden;
@@ -301,10 +352,10 @@ body {
 
 .streamer-controls {
     background: linear-gradient(to bottom, #261a15, #1e1410);
-    padding: 15px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
     border: 2px solid #8e7d5b;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     flex: 0 0 auto;
@@ -316,26 +367,17 @@ body {
     font-family: 'MedievalSharp', cursive;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     letter-spacing: 1px;
-    margin-bottom: 5px;
-    font-size: 20px;
+    margin-bottom: 2px;
+    font-size: 18px;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.streamer-controls h3::before,
-.streamer-controls h3::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #8e7d5b, transparent);
-    margin: 0 10px;
-}
-
 .game-status {
     background: linear-gradient(to bottom, #261a15, #1e1410);
-    padding: 15px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -387,7 +429,7 @@ body {
     display: flex;
     flex-direction: column;
     margin-top: 10px;
-    height: 0; /* Allow flex to control the height */
+    height: 0;
     min-height: 0;
     background-color: rgba(0, 0, 0, 0.15);
     padding: 8px;
@@ -500,7 +542,7 @@ button:disabled {
     grid-template-columns: 1fr;
     gap: 20px;
     height: auto;
-    max-height: 32vh;
+    max-height: 38vh;
     min-height: 200px;
 }
 
@@ -522,7 +564,7 @@ button:disabled {
     font-family: 'MedievalSharp', cursive;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     letter-spacing: 1px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     font-size: 20px;
     position: relative;
     display: flex;
@@ -530,21 +572,13 @@ button:disabled {
     justify-content: center;
 }
 
-.player-list h3::before,
-.player-list h3::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #8e7d5b, transparent);
-    margin: 0 10px;
-}
-
+/* Completely redesigned player container */
 #players-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
     overflow-y: auto;
-    margin-top: 10px;
+    margin-top: 8px;
     height: 0;
     flex-grow: 1;
     min-height: 0;
@@ -555,40 +589,39 @@ button:disabled {
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* Completely redesigned player cards */
 .player {
     background: linear-gradient(to bottom, #2b1f18, #231814);
     border-radius: 4px;
-    padding: 12px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     border-left: 3px solid #8e7d5b;
     transition: transform 0.2s, box-shadow 0.2s;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     height: fit-content;
-}
-
-.player:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    min-width: 130px;
+    max-width: 100%;
+    flex: 1 0 auto;
 }
 
 .player-name {
     font-weight: bold;
-    font-size: 16px;
+    font-size: 12px;
     font-family: 'Cinzel', serif;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     color: #e8d8b0;
-    padding-bottom: 5px;
+    padding-bottom: 4px;
     border-bottom: 1px solid rgba(142, 125, 91, 0.3);
 }
 
 .player-status {
-    font-size: 14px;
+    font-size: 12px;
     color: #a0c58a;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     font-family: 'Metamorphous', serif;
 }
 
@@ -601,10 +634,10 @@ button:disabled {
 }
 
 .player-treasure {
-    margin-top: 5px;
-    font-size: 15px;
+    margin-top: 3px;
+    font-size: 11px;
     background-color: rgba(0, 0, 0, 0.15);
-    padding: 8px;
+    padding: 4px 6px;
     border-radius: 4px;
     display: flex;
     justify-content: space-between;
@@ -772,68 +805,171 @@ button:disabled {
     .main-area {
         grid-template-columns: 3fr 2fr;
     }
+    
+    .card {
+        width: 110px;
+        height: 110px;
+    }
+    
+    #players-container {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    }
 }
 
 @media (max-width: 900px) {
     .game-container {
-        grid-template-rows: auto auto 1fr;
-        height: 100vh;
-        padding: 10px;
-        gap: 10px;
+        grid-template-rows: auto 1fr auto;
         overflow-y: auto;
+        height: 100vh;
+        padding: 8px;
+        gap: 8px;
     }
     
     .main-area {
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto;
-        height: auto;
-    }
-    
-    .cave-path {
-        max-height: 350px;
-    }
-    
-    .controls-area {
-        height: auto;
-    }
-    
-    .game-status {
-        max-height: 300px;
-    }
-    
-    .bottom-area {
-        height: auto;
-        max-height: none;
-        min-height: 200px;
-        flex: 1;
-    }
-    
-    .player-list {
-        height: 100%;
-    }
-}
-
-@media (max-width: 600px) {
-    .header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    .round-info {
-        width: 100%;
-        justify-content: space-between;
+        grid-template-rows: minmax(250px, 45vh) auto;
     }
     
     .cave-path {
         justify-content: center;
+        height: 100%;
+        max-height: none;
     }
     
-    .player {
-        min-width: 150px;
+    .card {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .card-image {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .card-value {
+        font-size: 16px;
+        padding: 4px 8px;
+    }
+    
+    .controls-area {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto;
+        display: grid;
+        height: auto;
+    }
+    
+    .streamer-controls, .game-status {
+        height: 100%;
+    }
+    
+    .bottom-area {
+        max-height: none;
+        height: auto;
     }
     
     #players-container {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        max-height: 300px;
     }
+}
+
+@media (max-width: 600px) {
+    .controls-area {
+        grid-template-columns: 1fr;
+    }
+    
+    .card {
+        width: 90px;
+        height: 90px;
+        margin: 3px 15px;
+    }
+    
+    .path-vertical {
+        height: 30px;
+    }
+    
+    .path-row {
+        margin-bottom: 30px;
+    }
+    
+    #players-container {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 6px;
+    }
+    
+    .player {
+        min-width: 100px;
+        padding: 6px;
+    }
+}
+
+/* Add custom scrollbars for better usability */
+.cave-path::-webkit-scrollbar,
+#players-container::-webkit-scrollbar,
+#game-log::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.cave-path::-webkit-scrollbar-track,
+#players-container::-webkit-scrollbar-track,
+#game-log::-webkit-scrollbar-track {
+    background: rgba(30, 20, 10, 0.3);
+    border-radius: 4px;
+}
+
+.cave-path::-webkit-scrollbar-thumb,
+#players-container::-webkit-scrollbar-thumb,
+#game-log::-webkit-scrollbar-thumb {
+    background: #8e7d5b;
+    border-radius: 4px;
+}
+
+.cave-path::-webkit-scrollbar-thumb:hover,
+#players-container::-webkit-scrollbar-thumb:hover,
+#game-log::-webkit-scrollbar-thumb:hover {
+    background: #d4af37;
+}
+
+/* Add zoom controls - Initially hidden */
+.zoom-controls {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s;
+}
+
+.zoom-controls.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.zoom-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(38, 26, 22, 0.9);
+    border: 1px solid #8e7d5b;
+    color: #e8d8b0;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.zoom-btn:hover {
+    background-color: rgba(58, 46, 32, 0.9);
+}
+
+.zoom-reset {
+    font-size: 14px;
+    padding: 5px;
+    width: 36px;
 }
