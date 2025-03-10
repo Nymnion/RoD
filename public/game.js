@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elementsMap.currentRound = document.getElementById('current-round');
     elementsMap.playerCount = document.getElementById('player-count');
     elementsMap.activePlayers = document.getElementById('active-players');
-    elementsMap.joinGrandmasterBtn = document.getElementById('join-grandmaster');
+    elementsMap.joinGamemasterBtn = document.getElementById('join-gamemaster');
     
     // Initialize templates
     cardTemplate = document.getElementById('card-template');
@@ -68,10 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Reveal card button not found!");
     }
     
-    if (elementsMap.joinGrandmasterBtn) {
-        elementsMap.joinGrandmasterBtn.addEventListener('click', joinAsGrandmaster);
+    if (elementsMap.joinGamemasterBtn) {
+        elementsMap.joinGamemasterBtn.addEventListener('click', joinAsGamemaster);
     } else {
-        console.error("Join as Grandmaster button not found!");
+        console.error("Join as Gamemaster button not found!");
     }
     
     // Set up socket connection for chat messages
@@ -208,9 +208,9 @@ function startGame() {
     if (elementsMap.startGameBtn) elementsMap.startGameBtn.disabled = true;
     if (elementsMap.revealCardBtn) elementsMap.revealCardBtn.disabled = true;
     
-    // Enable the Grandmaster button when a new game starts
-    if (elementsMap.joinGrandmasterBtn) {
-        elementsMap.joinGrandmasterBtn.disabled = false;
+    // Enable the Gamemaster button when a new game starts
+    if (elementsMap.joinGamemasterBtn) {
+        elementsMap.joinGamemasterBtn.disabled = false;
     }
     
     // Initialize path with entrance card
@@ -364,13 +364,13 @@ function skipJoinTimer() {
         addLogEntry(`Expedition ${gameState.currentRound} begins! Everyone enters the cave...`, 'highlight');
         updateGameMessage(`Expedition ${gameState.currentRound} begins! Ready to reveal the first card.`);
         
-        // If Grandmaster is playing, update the button text and disable it initially
-        if (gameState.players["Grandmaster"]) {
-            elementsMap.joinGrandmasterBtn.textContent = 'Roach as Grandmaster';
-            elementsMap.joinGrandmasterBtn.className = 'grandmaster-roach-btn';
-            elementsMap.joinGrandmasterBtn.disabled = true;
-            elementsMap.joinGrandmasterBtn.removeEventListener('click', joinAsGrandmaster);
-            elementsMap.joinGrandmasterBtn.addEventListener('click', roachAsGrandmaster);
+        // If Gamemaster is playing, update the button text and disable it initially
+        if (gameState.players["Gamemaster"]) {
+            elementsMap.joinGamemasterBtn.textContent = 'Roach as Gamemaster';
+            elementsMap.joinGamemasterBtn.className = 'gamemaster-roach-btn';
+            elementsMap.joinGamemasterBtn.disabled = true;
+            elementsMap.joinGamemasterBtn.removeEventListener('click', joinAsGamemaster);
+            elementsMap.joinGamemasterBtn.addEventListener('click', roachAsGamemaster);
         }
         
         // Reset the reveal card button text and enable it
@@ -794,10 +794,10 @@ function startDecisionPhase() {
     
     gameState.phase = 'deciding';
     
-    // If Grandmaster is in the cave, enable the roach button
-    const grandmaster = gameState.players["Grandmaster"];
-    if (grandmaster && grandmaster.inCave) {
-        elementsMap.joinGrandmasterBtn.disabled = false;
+    // If Gamemaster is in the cave, enable the roach button
+    const gamemaster = gameState.players["Gamemaster"];
+    if (gamemaster && gamemaster.inCave) {
+        elementsMap.joinGamemasterBtn.disabled = false;
     }
     
     addLogEntry("Decision time! Type !roach to leave with your treasures, or wait to continue exploring.", 'highlight');
@@ -806,8 +806,8 @@ function startDecisionPhase() {
     startTimer(config.decisionTime, () => {
         if (gameState.phase === 'deciding') {
             // Disable the roach button when timer runs out
-            if (elementsMap.joinGrandmasterBtn && elementsMap.joinGrandmasterBtn.textContent === 'Roach as Grandmaster') {
-                elementsMap.joinGrandmasterBtn.disabled = true;
+            if (elementsMap.joinGamemasterBtn && elementsMap.joinGamemasterBtn.textContent === 'Roach as Gamemaster') {
+                elementsMap.joinGamemasterBtn.disabled = true;
             }
             
             processDecisions();
@@ -950,8 +950,8 @@ function processDecisions() {
     }
     
     // Disable the roach button after decisions are processed
-    if (elementsMap.joinGrandmasterBtn && elementsMap.joinGrandmasterBtn.textContent === 'Roach as Grandmaster') {
-        elementsMap.joinGrandmasterBtn.disabled = true;
+    if (elementsMap.joinGamemasterBtn && elementsMap.joinGamemasterBtn.textContent === 'Roach as Gamemaster') {
+        elementsMap.joinGamemasterBtn.disabled = true;
     }
 }
 
@@ -995,8 +995,8 @@ function handleTrapSpring(trapType) {
     }
     
     // Disable the roach button since all players are out of the cave
-    if (elementsMap.joinGrandmasterBtn && elementsMap.joinGrandmasterBtn.textContent === 'Roach as Grandmaster') {
-        elementsMap.joinGrandmasterBtn.disabled = true;
+    if (elementsMap.joinGamemasterBtn && elementsMap.joinGamemasterBtn.textContent === 'Roach as Gamemaster') {
+        elementsMap.joinGamemasterBtn.disabled = true;
     }
     
     // Show the trap animation popup
@@ -1289,13 +1289,13 @@ function startNextRoundActual() {
         updatePlayerElement(player);
     });
     
-    // If Grandmaster is playing, ensure the button shows "Roach as Grandmaster" but disabled
-    if (gameState.players["Grandmaster"]) {
-        elementsMap.joinGrandmasterBtn.textContent = 'Roach as Grandmaster';
-        elementsMap.joinGrandmasterBtn.className = 'grandmaster-roach-btn';
-        elementsMap.joinGrandmasterBtn.disabled = true;
-        elementsMap.joinGrandmasterBtn.removeEventListener('click', joinAsGrandmaster);
-        elementsMap.joinGrandmasterBtn.addEventListener('click', roachAsGrandmaster);
+    // If Gamemaster is playing, ensure the button shows "Roach as Gamemaster" but disabled
+    if (gameState.players["Gamemaster"]) {
+        elementsMap.joinGamemasterBtn.textContent = 'Roach as Gamemaster';
+        elementsMap.joinGamemasterBtn.className = 'gamemaster-roach-btn';
+        elementsMap.joinGamemasterBtn.disabled = true;
+        elementsMap.joinGamemasterBtn.removeEventListener('click', joinAsGamemaster);
+        elementsMap.joinGamemasterBtn.addEventListener('click', roachAsGamemaster);
     }
     
     // Update active players count
@@ -1353,12 +1353,12 @@ function endGame(message) {
     
     elementsMap.revealCardBtn.disabled = true;
     
-    // Reset the Grandmaster button to join state
-    if (elementsMap.joinGrandmasterBtn) {
-        elementsMap.joinGrandmasterBtn.disabled = false;
-        elementsMap.joinGrandmasterBtn.textContent = 'Join as Grandmaster';
-        elementsMap.joinGrandmasterBtn.removeEventListener('click', roachAsGrandmaster);
-        elementsMap.joinGrandmasterBtn.addEventListener('click', joinAsGrandmaster);
+    // Reset the Gamemaster button to join state
+    if (elementsMap.joinGamemasterBtn) {
+        elementsMap.joinGamemasterBtn.disabled = false;
+        elementsMap.joinGamemasterBtn.textContent = 'Join as Gamemaster';
+        elementsMap.joinGamemasterBtn.removeEventListener('click', roachAsGamemaster);
+        elementsMap.joinGamemasterBtn.addEventListener('click', joinAsGamemaster);
     }
 }
 
@@ -1378,80 +1378,80 @@ function handleChatMessage(data) {
 }
 
 /**
- * Join the game as the Grandmaster
+ * Join the game as the Gamemaster
  */
-function joinAsGrandmaster() {
+function joinAsGamemaster() {
     if (!gameState.isActive || gameState.phase !== 'joining') {
         // Only allow joining during the joining phase
-        updateGameMessage("The Grandmaster can only join during the joining phase!");
+        updateGameMessage("The Gamemaster can only join during the joining phase!");
         return;
     }
 
-    // Check if Grandmaster already exists
-    if (gameState.players["Grandmaster"]) {
-        updateGameMessage("The Grandmaster is already in this expedition!");
+    // Check if Gamemaster already exists
+    if (gameState.players["Gamemaster"]) {
+        updateGameMessage("The Gamemaster is already in this expedition!");
         return;
     }
     
-    // Add the Grandmaster as a player
-    addPlayer("Grandmaster", true);
+    // Add the Gamemaster as a player
+    addPlayer("Gamemaster", true);
     
     // Provide feedback
-    updateGameMessage("The Grandmaster has joined the expedition!");
+    updateGameMessage("The Gamemaster has joined the expedition!");
     
-    // Change button to "Roach as Grandmaster" when the Grandmaster joins
+    // Change button to "Roach as Gamemaster" when the Gamemaster joins
     // But initially disable it - it will be enabled during decision phases
-    elementsMap.joinGrandmasterBtn.textContent = 'Roach as Grandmaster';
-    elementsMap.joinGrandmasterBtn.className = 'grandmaster-roach-btn';
-    elementsMap.joinGrandmasterBtn.disabled = true;
-    elementsMap.joinGrandmasterBtn.removeEventListener('click', joinAsGrandmaster);
-    elementsMap.joinGrandmasterBtn.addEventListener('click', roachAsGrandmaster);
+    elementsMap.joinGamemasterBtn.textContent = 'Roach as Gamemaster';
+    elementsMap.joinGamemasterBtn.className = 'gamemaster-roach-btn';
+    elementsMap.joinGamemasterBtn.disabled = true;
+    elementsMap.joinGamemasterBtn.removeEventListener('click', joinAsGamemaster);
+    elementsMap.joinGamemasterBtn.addEventListener('click', roachAsGamemaster);
 }
 
 /**
- * Grandmaster decides to roach (leave the cave)
+ * Gamemaster decides to roach (leave the cave)
  */
-function roachAsGrandmaster() {
-    // Check if the Grandmaster exists and is in the cave
-    if (!gameState.players["Grandmaster"]) {
-        updateGameMessage("The Grandmaster is not in this expedition!");
+function roachAsGamemaster() {
+    // Check if the Gamemaster exists and is in the cave
+    if (!gameState.players["Gamemaster"]) {
+        updateGameMessage("The Gamemaster is not in this expedition!");
         return;
     }
 
     // Check if we're in a valid phase to roach
     if (gameState.phase !== 'deciding') {
-        updateGameMessage("The Grandmaster can only roach during the decision phase!");
+        updateGameMessage("The Gamemaster can only roach during the decision phase!");
         return;
     }
 
-    // Check if Grandmaster is in the cave
-    if (!gameState.players["Grandmaster"].inCave) {
-        updateGameMessage("The Grandmaster is not in the cave!");
+    // Check if Gamemaster is in the cave
+    if (!gameState.players["Gamemaster"].inCave) {
+        updateGameMessage("The Gamemaster is not in the cave!");
         return;
     }
     
-    // Trigger the roach decision for Grandmaster
-    playerDecision("Grandmaster", 'exit');
+    // Trigger the roach decision for Gamemaster
+    playerDecision("Gamemaster", 'exit');
     
     // Provide feedback
-    addLogEntry("The Grandmaster has decided to roach out of the cave!", 'highlight');
-    updateGameMessage("The Grandmaster signals retreat from the dangers ahead!");
+
+    updateGameMessage("The Gamemaster signals retreat from the dangers ahead!");
     
     // Disable the button after successful roach to prevent multiple roaches
-    elementsMap.joinGrandmasterBtn.disabled = true;
+    elementsMap.joinGamemasterBtn.disabled = true;
 }
 
 /**
  * Add a player to the game
  */
-function addPlayer(username, isGrandmaster = false) {
+function addPlayer(username, isGamemaster = false) {
     // Check if player already exists
     if (gameState.players[username]) {
         return;
     }
     
-    // Check if player limit has been reached (skip check for Grandmaster)
-    if (!isGrandmaster && gameState.playerLimit > 0 && Object.keys(gameState.players).length >= gameState.playerLimit) {
+    // Check if player limit has been reached (skip check for Gamemaster)
+    if (!isGamemaster && gameState.playerLimit > 0 && Object.keys(gameState.players).length >= gameState.playerLimit) {
         addLogEntry(`${username} tried to join, but the player limit (${gameState.playerLimit}) has been reached.`, 'warning');
         return;
     }
@@ -1463,7 +1463,7 @@ function addPlayer(username, isGrandmaster = false) {
         holding: 0,
         chest: 0,
         status: 'waiting',
-        isGrandmaster: isGrandmaster
+        isGamemaster: isGamemaster
     };
     
     // Add to game state
@@ -1476,9 +1476,9 @@ function addPlayer(username, isGrandmaster = false) {
     // Update player count
     elementsMap.playerCount.textContent = Object.keys(gameState.players).length;
     
-    // Log the join - special message for Grandmaster
-    if (isGrandmaster) {
-        addLogEntry(`The Grandmaster has arrived to oversee the expedition!`, 'highlight');
+    // Log the join - special message for Gamemaster
+    if (isGamemaster) {
+        addLogEntry(`The Gamemaster has arrived to oversee the expedition!`, 'highlight');
     } else {
         addLogEntry(`${username} joined the game!`, 'success');
     }

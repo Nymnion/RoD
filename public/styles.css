@@ -640,8 +640,8 @@ button:disabled {
     background-color: #8c6d31;
 }
 
-/* Grandmaster button styling */
-.grandmaster-btn {
+/* Gamemaster button styling */
+.gamemaster-btn {
     background-color: #3c2a6b;
     color: #e8d8b0;
     font-weight: bold;
@@ -652,7 +652,7 @@ button:disabled {
     padding-left: 28px; /* Make space for the emoji */
 }
 
-.grandmaster-btn::before {
+.gamemaster-btn::before {
     content: "🧙";
     position: absolute;
     left: 10px;
@@ -661,12 +661,12 @@ button:disabled {
     font-size: 16px;
 }
 
-.grandmaster-btn:hover:not(:disabled) {
+.gamemaster-btn:hover:not(:disabled) {
     background-color: #4e379c;
 }
 
-/* Styling for the Grandmaster Roach button */
-.grandmaster-roach-btn {
+/* Styling for the Gamemaster Roach button */
+.gamemaster-roach-btn {
     background-color: #6b3d99;
     color: #e8d8b0;
     font-weight: bold;
@@ -677,7 +677,7 @@ button:disabled {
     padding-left: 28px; /* Make space for the emoji */
 }
 
-.grandmaster-roach-btn::before {
+.gamemaster-roach-btn::before {
     content: "🪳";
     position: absolute;
     left: 10px;
@@ -686,22 +686,22 @@ button:disabled {
     font-size: 16px;
 }
 
-.grandmaster-roach-btn:hover:not(:disabled) {
+.gamemaster-roach-btn:hover:not(:disabled) {
     background-color: #8b5db9;
 }
 
-.grandmaster-roach-btn:disabled {
+.gamemaster-roach-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-/* Special styling for Grandmaster player */
-.player[data-username="Grandmaster"] {
+/* Special styling for Gamemaster player */
+.player[data-username="Gamemaster"] {
     border-left: 3px solid #a27dff;
     background: linear-gradient(to bottom, #2e2040, #1e1428);
 }
 
-.player[data-username="Grandmaster"] .player-name {
+.player[data-username="Gamemaster"] .player-name {
     color: #d0b8ff;
 }
 
