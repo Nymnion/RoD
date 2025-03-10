@@ -994,102 +994,95 @@ function handleTrapSpring(trapType) {
         elementsMap.activePlayers.textContent = '0';
     }
     
-    // Start next round after a delay
-    setTimeout(() => {
-        startNextRound();
-    }, 2000);
-    
     // Disable the roach button since all players are out of the cave
     if (elementsMap.joinGrandmasterBtn && elementsMap.joinGrandmasterBtn.textContent === 'Roach as Grandmaster') {
         elementsMap.joinGrandmasterBtn.disabled = true;
     }
+    
+    // Show the trap animation popup
+    showTrapPopup(trapType, () => {
+        // Start the round summary after the animation completes
+        showRoundSummary();
+    });
 }
 
 /**
- * Start the next round or end the game
+ * Show a dramatic trap popup animation
  */
-function startNextRound() {
-    console.log(`Starting round ${gameState.currentRound + 1}`);
+function showTrapPopup(trapType, callback) {
+    // Create the trap popup elements
+    const trapPopupBackdrop = document.createElement('div');
+    trapPopupBackdrop.className = 'trap-popup-backdrop';
     
-    // Show round summary before starting the next round
-    showRoundSummary();
+    const trapPopup = document.createElement('div');
+    trapPopup.className = 'trap-popup';
     
-    // Check if this was the final round
-    if (gameState.currentRound >= config.maxRounds) {
-        endGame("Game over! All rounds completed.");
-        return;
+    const trapPopupContent = document.createElement('div');
+    trapPopupContent.className = 'trap-popup-content';
+    
+    // Create the content
+    const trapTitle = document.createElement('div');
+    trapTitle.className = 'trap-popup-title';
+    trapTitle.textContent = `${trapType.toUpperCase()} TRAP!`;
+    
+    const trapEmoji = document.createElement('div');
+    trapEmoji.className = 'trap-popup-emoji';
+    
+    // Set the emoji based on trap type
+    switch (trapType) {
+        case 'snake':
+            trapEmoji.textContent = '🐍';
+            break;
+        case 'spider':
+            trapEmoji.textContent = '🕷️';
+            break;
+        case 'lava':
+            trapEmoji.textContent = '🔥';
+            break;
+        case 'rockfall':
+            trapEmoji.textContent = '🪨';
+            break;
+        case 'poison':
+            trapEmoji.textContent = '☠️';
+            break;
+        default:
+            trapEmoji.textContent = '⚠️';
     }
     
-    // Increment round counter
-    gameState.currentRound++;
-    if (elementsMap.currentRound) elementsMap.currentRound.textContent = gameState.currentRound;
+    const trapMessage = document.createElement('div');
+    trapMessage.className = 'trap-popup-message';
+    trapMessage.textContent = 'All explorers in the cave have lost their treasures!';
     
-    // Reset path and traps for the new round
-    gameState.currentPath = [];
-    gameState.revealedTraps = {};
-    gameState.treasureOnPath = 0;
+    // Assemble the elements
+    trapPopupContent.appendChild(trapTitle);
+    trapPopupContent.appendChild(trapEmoji);
+    trapPopupContent.appendChild(trapMessage);
+    trapPopup.appendChild(trapPopupContent);
     
-    // Reset round statistics for the new round
-    gameState.roundStats = {
-        treasureFound: 0,
-        treasureTaken: 0,
-        trapsEncountered: 0,
-        trapsSprung: 0,
-        playersExited: 0,
-        playersTrapped: 0
-    };
+    // Add to the document
+    document.body.appendChild(trapPopupBackdrop);
+    document.body.appendChild(trapPopup);
     
-    // Clear the cave path display
-    if (elementsMap.cavePath) elementsMap.cavePath.innerHTML = '';
+    // Add some screen shake with CSS
+    document.body.style.animation = 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both';
     
-    // Create a new deck for each round to ensure traps can appear again
-    // and maintain the correct ratio between trap and treasure cards
-    gameState.treasureValues = []; // Reset treasure values for the new round
-    gameState.deck = createDeck();
-    console.log(`Created new deck with ${gameState.deck.length} cards for round ${gameState.currentRound}`);
-    
-    // Display treasure value range in the first round
-    if (gameState.currentRound === 1) {
-        const playerCount = Object.keys(gameState.players).length;
-        const minTreasure = Math.max(1, playerCount);
-        const maxTreasure = Math.max(5, playerCount * 4);
-        addLogEntry(`Treasure values range from ${minTreasure} to ${maxTreasure} gold based on ${playerCount} players.`, 'highlight');
+    // Play a sound if available
+    if (window.playTrapSound) {
+        window.playTrapSound(trapType);
     }
     
-    // Reset all players to be in the cave at the start of the round
-    Object.values(gameState.players).forEach(player => {
-        player.inCave = true;
-        player.status = 'in';
-        player.holding = 0;
-        updatePlayerElement(player);
-    });
-    
-    // If Grandmaster is playing, ensure the button shows "Roach as Grandmaster" but disabled
-    if (gameState.players["Grandmaster"]) {
-        elementsMap.joinGrandmasterBtn.textContent = 'Roach as Grandmaster';
-        elementsMap.joinGrandmasterBtn.className = 'grandmaster-roach-btn';
-        elementsMap.joinGrandmasterBtn.disabled = true;
-        elementsMap.joinGrandmasterBtn.removeEventListener('click', joinAsGrandmaster);
-        elementsMap.joinGrandmasterBtn.addEventListener('click', roachAsGrandmaster);
-    }
-    
-    // Update active players count
-    if (elementsMap.activePlayers) {
-        elementsMap.activePlayers.textContent = Object.keys(gameState.players).length;
-    }
-    
-    gameState.phase = 'revealing';
-    addLogEntry(`Round ${gameState.currentRound} begins! Everyone enters the cave...`, 'highlight');
-    updateGameMessage(`Round ${gameState.currentRound} begins! Ready to reveal the first card.`);
-    
-    // Reset the reveal card button text and enable it
-    if (elementsMap.revealCardBtn) {
-        elementsMap.revealCardBtn.textContent = 'Reveal First Card';
-        elementsMap.revealCardBtn.disabled = false;
-    }
-    
-    // Initialize with entrance card automatically
-    initializePathWithEntranceCard();
+    // Remove the popup after 3 seconds
+    setTimeout(() => {
+        trapPopup.classList.add('removing');
+        
+        setTimeout(() => {
+            document.body.removeChild(trapPopup);
+            document.body.removeChild(trapPopupBackdrop);
+            document.body.style.animation = '';
+            
+            if (callback) callback();
+        }, 500); // Wait for the exit animation to complete
+    }, 3000);
 }
 
 /**
@@ -1224,7 +1217,104 @@ function showRoundSummary() {
     // Add event listener to continue button
     continueButton.addEventListener('click', () => {
         document.body.removeChild(modal);
+        startNextRoundActual(); // Move the actual round start logic here
     });
+}
+
+/**
+ * Start the next round or end the game
+ * Modified to show summary first, then wait for user input
+ */
+function startNextRound() {
+    console.log(`Starting round ${gameState.currentRound + 1} process`);
+    
+    // Show round summary before starting the next round
+    // The actual round start happens when the user clicks Continue in the summary
+    showRoundSummary();
+}
+
+/**
+ * Actual logic to start the next round after user confirms
+ */
+function startNextRoundActual() {
+    console.log(`Actually starting round ${gameState.currentRound + 1}`);
+    
+    // Check if this was the final round
+    if (gameState.currentRound >= config.maxRounds) {
+        endGame("Game over! All rounds completed.");
+        return;
+    }
+    
+    // Increment round counter
+    gameState.currentRound++;
+    if (elementsMap.currentRound) elementsMap.currentRound.textContent = gameState.currentRound;
+    
+    // Reset path and traps for the new round
+    gameState.currentPath = [];
+    gameState.revealedTraps = {};
+    gameState.treasureOnPath = 0;
+    
+    // Reset round statistics for the new round
+    gameState.roundStats = {
+        treasureFound: 0,
+        treasureTaken: 0,
+        trapsEncountered: 0,
+        trapsSprung: 0,
+        playersExited: 0,
+        playersTrapped: 0
+    };
+    
+    // Clear the cave path display
+    if (elementsMap.cavePath) elementsMap.cavePath.innerHTML = '';
+    
+    // Create a new deck for each round to ensure traps can appear again
+    // and maintain the correct ratio between trap and treasure cards
+    gameState.treasureValues = []; // Reset treasure values for the new round
+    gameState.deck = createDeck();
+    console.log(`Created new deck with ${gameState.deck.length} cards for round ${gameState.currentRound}`);
+    
+    // Display treasure value range in the first round
+    if (gameState.currentRound === 1) {
+        const playerCount = Object.keys(gameState.players).length;
+        const minTreasure = Math.max(1, playerCount);
+        const maxTreasure = Math.max(5, playerCount * 4);
+        addLogEntry(`Treasure values range from ${minTreasure} to ${maxTreasure} gold based on ${playerCount} players.`, 'highlight');
+    }
+    
+    // Reset all players to be in the cave at the start of the round
+    Object.values(gameState.players).forEach(player => {
+        player.inCave = true;
+        player.status = 'in';
+        player.holding = 0;
+        updatePlayerElement(player);
+    });
+    
+    // If Grandmaster is playing, ensure the button shows "Roach as Grandmaster" but disabled
+    if (gameState.players["Grandmaster"]) {
+        elementsMap.joinGrandmasterBtn.textContent = 'Roach as Grandmaster';
+        elementsMap.joinGrandmasterBtn.className = 'grandmaster-roach-btn';
+        elementsMap.joinGrandmasterBtn.disabled = true;
+        elementsMap.joinGrandmasterBtn.removeEventListener('click', joinAsGrandmaster);
+        elementsMap.joinGrandmasterBtn.addEventListener('click', roachAsGrandmaster);
+    }
+    
+    // Update active players count
+    if (elementsMap.activePlayers) {
+        elementsMap.activePlayers.textContent = Object.keys(gameState.players).length;
+    }
+    
+    gameState.phase = 'revealing';
+    addLogEntry(`Round ${gameState.currentRound} begins! Everyone enters the cave...`, 'highlight');
+    updateGameMessage(`Round ${gameState.currentRound} begins! Ready to reveal the first card.`);
+    
+    // Reset the reveal card button text and enable it
+    if (elementsMap.revealCardBtn) {
+        elementsMap.revealCardBtn.textContent = 'Reveal First Card';
+        elementsMap.revealCardBtn.disabled = false;
+    }
+    
+    // Initialize with entrance card automatically
+    initializePathWithEntranceCard();
 }
 
 /**
@@ -2402,3 +2492,14 @@ function generateGridPositions(cardCount) {
     
     return positions;
 }
+
+// Add a CSS keyframe animation for screen shake
+const shakeAnimation = document.createElement('style');
+shakeAnimation.textContent = `
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}`;
+document.head.appendChild(shakeAnimation);

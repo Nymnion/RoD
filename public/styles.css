@@ -1362,3 +1362,114 @@ button:disabled {
         font-size: 12px;
     }
 }
+
+/* Trap Animation Popup */
+.trap-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+.trap-popup-content {
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 0 100px rgba(255, 0, 0, 0.5);
+    text-align: center;
+    animation: trapPopupIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    border: 2px solid #f44336;
+    max-width: 90%;
+    width: 400px;
+    transform: scale(0);
+}
+
+.trap-popup.removing .trap-popup-content {
+    animation: trapPopupOut 0.5s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards;
+}
+
+.trap-popup-title {
+    color: #f44336;
+    font-size: 32px;
+    margin-bottom: 20px;
+    font-family: 'MedievalSharp', cursive;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}
+
+.trap-popup-emoji {
+    font-size: 80px;
+    margin: 20px 0;
+    animation: trapEmojiPulse 1s infinite alternate;
+}
+
+.trap-popup-message {
+    color: #fff;
+    font-size: 20px;
+    margin-top: 20px;
+    font-family: 'Metamorphous', serif;
+}
+
+@keyframes trapPopupIn {
+    0% {
+        transform: scale(0) rotate(-10deg);
+        opacity: 0;
+    }
+    80% {
+        transform: scale(1.1) rotate(5deg);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1) rotate(0);
+        opacity: 1;
+    }
+}
+
+@keyframes trapPopupOut {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+@keyframes trapEmojiPulse {
+    0% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(1.3);
+    }
+}
+
+.trap-popup-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%);
+    animation: backdropPulse 2s infinite alternate;
+    pointer-events: none;
+    z-index: 1999;
+}
+
+@keyframes backdropPulse {
+    0% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 1;
+    }
+}
