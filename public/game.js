@@ -1023,7 +1023,7 @@ function showTrapPopup(trapType, callback) {
     // Create the content
     const trapTitle = document.createElement('div');
     trapTitle.className = 'trap-popup-title';
-    trapTitle.textContent = `${trapType.toUpperCase()} TRAP!`;
+    trapTitle.textContent = `${trapType.toUpperCase()} TRAP HAS SPRUNG!`;
     
     const trapEmoji = document.createElement('div');
     trapEmoji.className = 'trap-popup-emoji';
