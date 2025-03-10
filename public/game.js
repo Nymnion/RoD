@@ -276,8 +276,45 @@ function startGame() {
             
             if (Object.keys(gameState.players).length > 0) {
                 console.log(`Starting first round with ${Object.keys(gameState.players).length} players`);
-                // Start the first round (deck will be created in startNextRound)
-                startNextRound();
+                
+                // Instead of calling startNextRound(), create the deck and prepare the game directly
+                // Similar to what skipJoinTimer() does
+                gameState.deck = createDeck();
+                console.log(`Created new deck with ${gameState.deck.length} cards for round ${gameState.currentRound}`);
+                
+                // Reset player states to be in the cave
+                Object.values(gameState.players).forEach(player => {
+                    player.inCave = true;
+                    player.status = 'in';
+                    player.holding = 0;
+                    updatePlayerElement(player);
+                });
+                
+                // Update active players count
+                if (elementsMap.activePlayers) {
+                    elementsMap.activePlayers.textContent = Object.keys(gameState.players).length;
+                }
+                
+                // Set phase to revealing
+                gameState.phase = 'revealing';
+                
+                // Log the start of the expedition
+                addLogEntry(`Expedition ${gameState.currentRound} begins! Everyone enters the cave...`, 'highlight');
+                updateGameMessage(`Expedition ${gameState.currentRound} begins! Ready to reveal the first card.`);
+                
+                // Reset the reveal card button text and enable it
+                if (elementsMap.revealCardBtn) {
+                    elementsMap.revealCardBtn.textContent = 'Reveal First Card';
+                    elementsMap.revealCardBtn.disabled = false;
+                }
+                
+                // Reset the main button
+                if (elementsMap.startGameBtn) {
+                    elementsMap.startGameBtn.disabled = true;
+                    elementsMap.startGameBtn.textContent = 'Begin Expedition';
+                    elementsMap.startGameBtn.removeEventListener('click', skipJoinTimer);
+                    elementsMap.startGameBtn.addEventListener('click', showPlayerLimitPrompt);
+                }
             } else {
                 console.log("No players joined, canceling game");
                 gameState.phase = 'waiting';
@@ -2197,8 +2234,8 @@ function initializeZoomPan() {
 window.initializeZoomPan = initializeZoomPan;
 
 /**
- * Generate grid positions for the cards in a left-to-right pattern with random vertical variations
- * Now with 1-cell spacing between cards for tighter layout
+ * Generate grid positions for the cards with more randomness
+ * Ensures that the same direction isn't repeated more than twice
  */
 function generateGridPositions(cardCount) {
     const positions = [];
@@ -2210,45 +2247,68 @@ function generateGridPositions(cardCount) {
     // Add the entrance card position
     positions.push({ col: startCol, row: startRow });
     
+    // Define possible directions
+    const directions = [
+        { name: 'right', colDelta: 1, rowDelta: 0 },
+        { name: 'up-right', colDelta: 1, rowDelta: -1 },
+        { name: 'down-right', colDelta: 1, rowDelta: 1 },
+        { name: 'up', colDelta: 0, rowDelta: -1 },
+        { name: 'down', colDelta: 0, rowDelta: 1 }
+    ];
+    
+    // Track the last direction used and how many times it was repeated
+    let lastDirectionName = null;
+    let directionRepeatCount = 0;
+    
     // For all subsequent cards (after the entrance), generate positions with spacing
     let lastCol = startCol;
     let lastRow = startRow;
     
     for (let i = 1; i < cardCount; i++) {
-        // Each card moves to a new position with 1 cell spacing
-        const rand = Math.random();
-        let newCol = lastCol + 1;  // Move right by 1 cell
-        let newRow = lastRow;
-        
-        if (rand < 0.33) {
-            // Go up-right (33% chance)
-            newRow = lastRow - 1;
-        } else if (rand < 0.66) {
-            // Go straight right (33% chance)
-            // newRow stays the same
-        } else {
-            // Go down-right (33% chance)
-            newRow = lastRow + 1;
-        }
-        
-        // Make sure we stay within grid bounds (vertically)
-        newRow = Math.max(2, Math.min(newRow, 23));
-        
-        // Check if we're getting too close to the edge horizontally
-        if (newCol > 20) {
-            // Apply a direction change to avoid hitting the edge
-            const turnRand = Math.random();
+        // Filter available directions based on current position and past usage
+        const availableDirections = directions.filter(dir => {
+            // Don't allow going out of bounds (stay within grid)
+            const newCol = lastCol + dir.colDelta;
+            const newRow = lastRow + dir.rowDelta;
             
-            if (turnRand < 0.7) { // 70% chance to make a significant turn
-                if (turnRand < 0.35) { // 35% chance to go up
-                    newCol = lastCol;
-                    newRow = Math.max(2, lastRow - 1);
-                } else { // 35% chance to go down
-                    newCol = lastCol;
-                    newRow = Math.min(23, lastRow + 1);
-                }
+            // Check grid boundaries
+            if (newRow < 2 || newRow > 23) return false;
+            
+            // Avoid going too far right (encourage turning)
+            if (newCol > 22) {
+                // Only allow vertical moves when we're too far right
+                return dir.colDelta === 0;
             }
+            
+            // Limit direction repetition
+            if (dir.name === lastDirectionName && directionRepeatCount >= 2) {
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // If no directions are available (trapped), force a right movement
+        let chosenDirection;
+        if (availableDirections.length === 0) {
+            console.log("Path is trapped, forcing a new direction");
+            chosenDirection = { name: 'right', colDelta: 1, rowDelta: 0 };
+        } else {
+            // Choose a random available direction
+            chosenDirection = availableDirections[Math.floor(Math.random() * availableDirections.length)];
         }
+        
+        // Update direction tracking
+        if (chosenDirection.name === lastDirectionName) {
+            directionRepeatCount++;
+        } else {
+            lastDirectionName = chosenDirection.name;
+            directionRepeatCount = 1;
+        }
+        
+        // Calculate the new position
+        const newCol = lastCol + chosenDirection.colDelta;
+        const newRow = lastRow + chosenDirection.rowDelta;
         
         // Add the new position
         positions.push({ col: newCol, row: newRow });
