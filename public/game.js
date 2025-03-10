@@ -364,6 +364,15 @@ function skipJoinTimer() {
         addLogEntry(`Expedition ${gameState.currentRound} begins! Everyone enters the cave...`, 'highlight');
         updateGameMessage(`Expedition ${gameState.currentRound} begins! Ready to reveal the first card.`);
         
+        // If Grandmaster is playing, update the button text and disable it initially
+        if (gameState.players["Grandmaster"]) {
+            elementsMap.joinGrandmasterBtn.textContent = 'Roach as Grandmaster';
+            elementsMap.joinGrandmasterBtn.className = 'grandmaster-roach-btn';
+            elementsMap.joinGrandmasterBtn.disabled = true;
+            elementsMap.joinGrandmasterBtn.removeEventListener('click', joinAsGrandmaster);
+            elementsMap.joinGrandmasterBtn.addEventListener('click', roachAsGrandmaster);
+        }
+        
         // Reset the reveal card button text and enable it
         if (elementsMap.revealCardBtn) {
             elementsMap.revealCardBtn.textContent = 'Reveal First Card';
@@ -785,11 +794,22 @@ function startDecisionPhase() {
     
     gameState.phase = 'deciding';
     
+    // If Grandmaster is in the cave, enable the roach button
+    const grandmaster = gameState.players["Grandmaster"];
+    if (grandmaster && grandmaster.inCave) {
+        elementsMap.joinGrandmasterBtn.disabled = false;
+    }
+    
     addLogEntry("Decision time! Type !roach to leave with your treasures, or wait to continue exploring.", 'highlight');
     
     // Start timer for decision phase (15 seconds)
     startTimer(config.decisionTime, () => {
         if (gameState.phase === 'deciding') {
+            // Disable the roach button when timer runs out
+            if (elementsMap.joinGrandmasterBtn && elementsMap.joinGrandmasterBtn.textContent === 'Roach as Grandmaster') {
+                elementsMap.joinGrandmasterBtn.disabled = true;
+            }
+            
             processDecisions();
             
             // Automatically reveal the next card after processing decisions
@@ -928,6 +948,11 @@ function processDecisions() {
         gameState.phase = 'revealing';
         updateGameMessage("Continuing to the next card...");
     }
+    
+    // Disable the roach button after decisions are processed
+    if (elementsMap.joinGrandmasterBtn && elementsMap.joinGrandmasterBtn.textContent === 'Roach as Grandmaster') {
+        elementsMap.joinGrandmasterBtn.disabled = true;
+    }
 }
 
 /**
@@ -973,6 +998,11 @@ function handleTrapSpring(trapType) {
     setTimeout(() => {
         startNextRound();
     }, 2000);
+    
+    // Disable the roach button since all players are out of the cave
+    if (elementsMap.joinGrandmasterBtn && elementsMap.joinGrandmasterBtn.textContent === 'Roach as Grandmaster') {
+        elementsMap.joinGrandmasterBtn.disabled = true;
+    }
 }
 
 /**
@@ -1033,6 +1063,15 @@ function startNextRound() {
         player.holding = 0;
         updatePlayerElement(player);
     });
+    
+    // If Grandmaster is playing, ensure the button shows "Roach as Grandmaster" but disabled
+    if (gameState.players["Grandmaster"]) {
+        elementsMap.joinGrandmasterBtn.textContent = 'Roach as Grandmaster';
+        elementsMap.joinGrandmasterBtn.className = 'grandmaster-roach-btn';
+        elementsMap.joinGrandmasterBtn.disabled = true;
+        elementsMap.joinGrandmasterBtn.removeEventListener('click', joinAsGrandmaster);
+        elementsMap.joinGrandmasterBtn.addEventListener('click', roachAsGrandmaster);
+    }
     
     // Update active players count
     if (elementsMap.activePlayers) {
@@ -1224,9 +1263,12 @@ function endGame(message) {
     
     elementsMap.revealCardBtn.disabled = true;
     
-    // Enable the Grandmaster button again when the game ends
+    // Reset the Grandmaster button to join state
     if (elementsMap.joinGrandmasterBtn) {
         elementsMap.joinGrandmasterBtn.disabled = false;
+        elementsMap.joinGrandmasterBtn.textContent = 'Join as Grandmaster';
+        elementsMap.joinGrandmasterBtn.removeEventListener('click', roachAsGrandmaster);
+        elementsMap.joinGrandmasterBtn.addEventListener('click', joinAsGrandmaster);
     }
 }
 
@@ -1266,6 +1308,46 @@ function joinAsGrandmaster() {
     
     // Provide feedback
     updateGameMessage("The Grandmaster has joined the expedition!");
+    
+    // Change button to "Roach as Grandmaster" when the Grandmaster joins
+    // But initially disable it - it will be enabled during decision phases
+    elementsMap.joinGrandmasterBtn.textContent = 'Roach as Grandmaster';
+    elementsMap.joinGrandmasterBtn.className = 'grandmaster-roach-btn';
+    elementsMap.joinGrandmasterBtn.disabled = true;
+    elementsMap.joinGrandmasterBtn.removeEventListener('click', joinAsGrandmaster);
+    elementsMap.joinGrandmasterBtn.addEventListener('click', roachAsGrandmaster);
+}
+
+/**
+ * Grandmaster decides to roach (leave the cave)
+ */
+function roachAsGrandmaster() {
+    // Check if the Grandmaster exists and is in the cave
+    if (!gameState.players["Grandmaster"]) {
+        updateGameMessage("The Grandmaster is not in this expedition!");
+        return;
+    }
+
+    // Check if we're in a valid phase to roach
+    if (gameState.phase !== 'deciding') {
+        updateGameMessage("The Grandmaster can only roach during the decision phase!");
+        return;
+    }
+
+    // Check if Grandmaster is in the cave
+    if (!gameState.players["Grandmaster"].inCave) {
+        updateGameMessage("The Grandmaster is not in the cave!");
+        return;
+    }
+    
+    // Trigger the roach decision for Grandmaster
+    playerDecision("Grandmaster", 'exit');
+    
+    // Provide feedback
+    addLogEntry("The Grandmaster has decided to roach out of the cave!", 'highlight');
+    updateGameMessage("The Grandmaster signals retreat from the dangers ahead!");
+    
+    // Disable the button after successful roach to prevent multiple roaches
     elementsMap.joinGrandmasterBtn.disabled = true;
 }
 
