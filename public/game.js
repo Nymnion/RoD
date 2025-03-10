@@ -186,6 +186,16 @@ function startGame() {
     gameState.treasureValues = [];
     gameState.players = {};
     
+    // Initialize round statistics tracking
+    gameState.roundStats = {
+        treasureFound: 0,
+        treasureTaken: 0,
+        trapsEncountered: 0,
+        trapsSprung: 0,
+        playersExited: 0,
+        playersTrapped: 0
+    };
+    
     // Update UI safely
     if (elementsMap.currentRound) elementsMap.currentRound.textContent = gameState.currentRound;
     if (elementsMap.playerCount) elementsMap.playerCount.textContent = '0';
@@ -237,6 +247,14 @@ function startGame() {
     if (timerDisplay) timerDisplay.textContent = `${gameState.timerRemaining}s`;
     if (timerBar) timerBar.style.transform = 'scaleX(1)';
     
+    // Change the Start Game button to "Begin Now" to allow skipping the countdown
+    if (elementsMap.startGameBtn) {
+        elementsMap.startGameBtn.textContent = 'Begin Now';
+        elementsMap.startGameBtn.disabled = false;
+        elementsMap.startGameBtn.removeEventListener('click', showPlayerLimitPrompt);
+        elementsMap.startGameBtn.addEventListener('click', skipJoinTimer);
+    }
+    
     // Start the timer
     gameState.timer = setInterval(() => {
         gameState.timerRemaining--;
@@ -269,6 +287,72 @@ function startGame() {
             }
         }
     }, 1000);
+}
+
+/**
+ * Skip the join timer and start the game immediately
+ */
+function skipJoinTimer() {
+    console.log("Skipping join timer and starting game immediately");
+    
+    // Clear the join timer
+    if (gameState.timer) {
+        clearInterval(gameState.timer);
+        gameState.timer = null;
+    }
+    
+    if (Object.keys(gameState.players).length > 0) {
+        console.log(`Starting first round with ${Object.keys(gameState.players).length} players`);
+        // Create the deck and prepare the game - don't call startNextRound() as that would show summary
+        gameState.deck = createDeck();
+        console.log(`Created new deck with ${gameState.deck.length} cards for round ${gameState.currentRound}`);
+        
+        // Reset player states to be in the cave
+        Object.values(gameState.players).forEach(player => {
+            player.inCave = true;
+            player.status = 'in';
+            player.holding = 0;
+            updatePlayerElement(player);
+        });
+        
+        // Update active players count
+        if (elementsMap.activePlayers) {
+            elementsMap.activePlayers.textContent = Object.keys(gameState.players).length;
+        }
+        
+        // Set phase to revealing
+        gameState.phase = 'revealing';
+        
+        // Log the start of the expedition
+        addLogEntry(`Expedition ${gameState.currentRound} begins! Everyone enters the cave...`, 'highlight');
+        updateGameMessage(`Expedition ${gameState.currentRound} begins! Ready to reveal the first card.`);
+        
+        // Reset the reveal card button text and enable it
+        if (elementsMap.revealCardBtn) {
+            elementsMap.revealCardBtn.textContent = 'Reveal First Card';
+            elementsMap.revealCardBtn.disabled = false;
+        }
+        
+        // Reset the main button
+        if (elementsMap.startGameBtn) {
+            elementsMap.startGameBtn.disabled = true;
+            // Change the text back to "Begin Expedition" (for next game)
+            elementsMap.startGameBtn.textContent = 'Begin Expedition';
+            elementsMap.startGameBtn.removeEventListener('click', skipJoinTimer);
+            elementsMap.startGameBtn.addEventListener('click', showPlayerLimitPrompt);
+        }
+    } else {
+        console.log("No players joined, canceling game");
+        gameState.phase = 'waiting';
+        gameState.isActive = false;
+        updateGameMessage('No players joined. Game canceled.');
+        if (elementsMap.startGameBtn) {
+            elementsMap.startGameBtn.disabled = false;
+            elementsMap.startGameBtn.textContent = 'Begin Expedition';
+            elementsMap.startGameBtn.removeEventListener('click', skipJoinTimer);
+            elementsMap.startGameBtn.addEventListener('click', showPlayerLimitPrompt);
+        }
+    }
 }
 
 /**
@@ -583,6 +667,10 @@ function processCardEffects(card) {
             card.originalValue = card.value; // Store original value for display purposes
             card.value = remainingTreasure;
             
+            // Update round stats
+            gameState.roundStats.treasureFound += card.originalValue;
+            gameState.roundStats.treasureTaken += card.originalValue - remainingTreasure;
+            
             // Add treasure to each player in the cave
             playersInCave.forEach(player => {
                 player.holding = (player.holding || 0) + treasurePerPlayer;
@@ -602,14 +690,21 @@ function processCardEffects(card) {
             // No players in cave, just add to path
             gameState.treasureOnPath += card.value;
             card.originalValue = card.value;
+            gameState.roundStats.treasureFound += card.value;
             addLogEntry(`Revealed: ${card.value} rubies!`, 'success');
         }
     } else if (card.type === 'trap') {
         // Count this trap type
         gameState.revealedTraps[card.trapType] = (gameState.revealedTraps[card.trapType] || 0) + 1;
         
+        // Update trap statistics
+        gameState.roundStats.trapsEncountered++;
+        
         // Check if this is the second trap of this type
         if (gameState.revealedTraps[card.trapType] >= 2) {
+            // Update trap sprung statistics
+            gameState.roundStats.trapsSprung++;
+            
             addLogEntry(`DANGER! A second ${card.trapType} trap appears!`, 'danger');
             
             // First, give players a chance to make a decision
@@ -626,6 +721,7 @@ function processCardEffects(card) {
             addLogEntry(`Revealed: A ${card.trapType} trap! Be careful...`, 'warning');
         }
     } else if (card.type === 'relic') {
+        gameState.roundStats.treasureFound += card.value;
         addLogEntry(`Revealed: A rare relic worth ${card.value} rubies!`, 'highlight');
         gameState.treasureOnPath += card.value;
     }
@@ -691,12 +787,18 @@ function processDecisions() {
     console.log("Exiting players:", exitingPlayers.length);
     
     if (exitingPlayers.length > 0) {
+        // Update stats for exited players
+        gameState.roundStats.playersExited += exitingPlayers.length;
+        
         // Calculate how many players are exiting
         const totalExitingPlayers = exitingPlayers.length;
         
         // Calculate total remaining treasure on the path to divide among exiting players
         const remainingPathTreasure = gameState.treasureOnPath;
         const treasurePerExitingPlayer = Math.floor(remainingPathTreasure / totalExitingPlayers);
+        
+        // Update round stats for treasure taken
+        gameState.roundStats.treasureTaken += remainingPathTreasure;
         
         console.log("Remaining path treasure:", remainingPathTreasure);
         console.log("Treasure per exiting player:", treasurePerExitingPlayer);
@@ -812,6 +914,9 @@ function handleTrapSpring(trapType) {
     
     // Now handle the trap for remaining players
     // All players still in the cave lose their treasures
+    const trappedPlayers = Object.values(gameState.players).filter(p => p.inCave);
+    gameState.roundStats.playersTrapped += trappedPlayers.length;
+    
     Object.values(gameState.players).forEach(player => {
         if (player.inCave) {
             console.log(`${player.username} loses ${player.holding} treasure due to trap!`);
@@ -839,6 +944,9 @@ function handleTrapSpring(trapType) {
 function startNextRound() {
     console.log(`Starting round ${gameState.currentRound + 1}`);
     
+    // Show round summary before starting the next round
+    showRoundSummary();
+    
     // Check if this was the final round
     if (gameState.currentRound >= config.maxRounds) {
         endGame("Game over! All rounds completed.");
@@ -853,6 +961,16 @@ function startNextRound() {
     gameState.currentPath = [];
     gameState.revealedTraps = {};
     gameState.treasureOnPath = 0;
+    
+    // Reset round statistics for the new round
+    gameState.roundStats = {
+        treasureFound: 0,
+        treasureTaken: 0,
+        trapsEncountered: 0,
+        trapsSprung: 0,
+        playersExited: 0,
+        playersTrapped: 0
+    };
     
     // Clear the cave path display
     if (elementsMap.cavePath) elementsMap.cavePath.innerHTML = '';
@@ -899,6 +1017,141 @@ function startNextRound() {
 }
 
 /**
+ * Show round summary modal with statistics
+ */
+function showRoundSummary() {
+    // Don't show summary for round 0 (before game starts)
+    if (gameState.currentRound === 0) return;
+    
+    console.log("Showing round summary");
+    
+    // Create the modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content summary-modal';
+    
+    // Add title
+    const title = document.createElement('h2');
+    title.textContent = `Expedition ${gameState.currentRound} Summary`;
+    modalContent.appendChild(title);
+    
+    // Create summary content
+    const summary = document.createElement('div');
+    summary.className = 'round-summary';
+    
+    // Create treasure stats section
+    const treasureStats = document.createElement('div');
+    treasureStats.className = 'summary-section';
+    treasureStats.innerHTML = `
+        <h3><span class="summary-icon">🪙</span> Treasure</h3>
+        <div class="summary-stat">
+            <span class="stat-label">Discovered:</span>
+            <span class="stat-value">${gameState.roundStats.treasureFound} rubies</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Collected:</span>
+            <span class="stat-value">${gameState.roundStats.treasureTaken} rubies</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Left behind:</span>
+            <span class="stat-value">${gameState.roundStats.treasureFound - gameState.roundStats.treasureTaken} rubies</span>
+        </div>
+    `;
+    summary.appendChild(treasureStats);
+    
+    // Create danger stats section
+    const dangerStats = document.createElement('div');
+    dangerStats.className = 'summary-section';
+    dangerStats.innerHTML = `
+        <h3><span class="summary-icon">⚠️</span> Dangers</h3>
+        <div class="summary-stat">
+            <span class="stat-label">Traps encountered:</span>
+            <span class="stat-value">${gameState.roundStats.trapsEncountered}</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Traps sprung:</span>
+            <span class="stat-value">${gameState.roundStats.trapsSprung}</span>
+        </div>
+    `;
+    summary.appendChild(dangerStats);
+    
+    // Create player stats section
+    const playerStats = document.createElement('div');
+    playerStats.className = 'summary-section';
+    playerStats.innerHTML = `
+        <h3><span class="summary-icon">👤</span> Explorers</h3>
+        <div class="summary-stat">
+            <span class="stat-label">Total participants:</span>
+            <span class="stat-value">${Object.keys(gameState.players).length}</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Safely exited:</span>
+            <span class="stat-value">${gameState.roundStats.playersExited}</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Trapped:</span>
+            <span class="stat-value">${gameState.roundStats.playersTrapped}</span>
+        </div>
+    `;
+    summary.appendChild(playerStats);
+    
+    // Create player standings
+    const standingsSection = document.createElement('div');
+    standingsSection.className = 'summary-section player-standings';
+    standingsSection.innerHTML = '<h3><span class="summary-icon">🏆</span> Current Standings</h3>';
+    
+    // Sort players by chest value
+    const sortedPlayers = Object.values(gameState.players)
+        .sort((a, b) => b.chest - a.chest)
+        .slice(0, 5); // Show only top 5
+    
+    const standingsList = document.createElement('div');
+    standingsList.className = 'standings-list';
+    
+    sortedPlayers.forEach((player, index) => {
+        const playerEntry = document.createElement('div');
+        playerEntry.className = 'player-standing';
+        playerEntry.innerHTML = `
+            <span class="standing-rank">${index + 1}.</span>
+            <span class="standing-name">${player.username}</span>
+            <span class="standing-score">${player.chest} rubies</span>
+        `;
+        standingsList.appendChild(playerEntry);
+    });
+    
+    standingsSection.appendChild(standingsList);
+    summary.appendChild(standingsSection);
+    
+    modalContent.appendChild(summary);
+    
+    // Add continue button
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.marginTop = '20px';
+    buttonContainer.style.textAlign = 'center';
+    
+    const continueButton = document.createElement('button');
+    continueButton.textContent = gameState.currentRound >= config.maxRounds ? 
+        'See Final Results' : 'Continue to Next Expedition';
+    continueButton.className = 'primary-btn';
+    continueButton.style.minWidth = '200px';
+    
+    buttonContainer.appendChild(continueButton);
+    modalContent.appendChild(buttonContainer);
+    
+    // Add modal to the page
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Add event listener to continue button
+    continueButton.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+/**
  * End the game and show final scores
  */
 function endGame(message) {
@@ -924,8 +1177,14 @@ function endGame(message) {
         updateGameMessage("Game over! No players participated.");
     }
     
-    // Enable start game button
-    elementsMap.startGameBtn.disabled = false;
+    // Enable start game button and reset text
+    if (elementsMap.startGameBtn) {
+        elementsMap.startGameBtn.disabled = false;
+        elementsMap.startGameBtn.textContent = 'Begin Expedition';
+        elementsMap.startGameBtn.removeEventListener('click', skipJoinTimer);
+        elementsMap.startGameBtn.addEventListener('click', showPlayerLimitPrompt);
+    }
+    
     elementsMap.revealCardBtn.disabled = true;
     
     // Enable the Grandmaster button again when the game ends
