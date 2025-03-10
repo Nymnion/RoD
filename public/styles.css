@@ -219,8 +219,8 @@ body {
 
 .path-grid {
     display: grid;
-    grid-template-columns: repeat(15, 140px);
-    grid-template-rows: repeat(15, 140px);
+    grid-template-columns: repeat(25, 140px);
+    grid-template-rows: repeat(25, 140px);
     gap: 10px;
     position: relative;
     background-image: linear-gradient(to right, rgba(142, 125, 91, 0.05) 1px, transparent 1px),
@@ -439,14 +439,7 @@ body {
     color: #6bffff;
 }
 
-.trap-card .card-content::before {
-    content: "⚠";
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    font-size: 12px;
-    opacity: 0.8;
-}
+
 
 /* Relic Cards */
 .relic-card {

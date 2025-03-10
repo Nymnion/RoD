@@ -1080,7 +1080,7 @@ function createCardElement(card, isNewCard = false) {
         
         // Set entrance emoji
         if (cardImage) {
-            cardImage.innerHTML = `<span class="card-emoji">🚪</span>`;
+            cardImage.innerHTML = `<span class="card-emoji">⛰️</span>`;
         }
         
         // Set value content
@@ -1100,7 +1100,7 @@ function createCardElement(card, isNewCard = false) {
         
         // Set treasure emoji
         if (cardImage) {
-            cardImage.innerHTML = `<span class="card-emoji">💎</span>`;
+            cardImage.innerHTML = `<span class="card-emoji">🪙</span>`;
         }
         
         // Clear any previous values
@@ -1397,8 +1397,8 @@ function updatePathDisplay() {
         
         // Add subtle grid cell markers for reference (optional, can be commented out for production)
         // This helps visualize the actual grid positions
-        for (let row = 1; row <= 15; row++) {
-            for (let col = 1; col <= 15; col++) {
+        for (let row = 1; row <= 25; row++) {
+            for (let col = 1; col <= 25; col++) {
                 const marker = document.createElement('div');
                 marker.className = 'grid-cell-marker';
                 marker.textContent = `${col},${row}`;
@@ -1465,13 +1465,13 @@ function updatePathDisplay() {
             // Generate positions for new cards, starting from the last known position
             let lastPos = storedPositions.length > 0 
                 ? storedPositions[storedPositions.length - 1] 
-                : { col: 8, row: 8 }; // Default to center if no positions
+                : { col: 13, row: 13 }; // Default to center if no positions
             
             for (let i = 0; i < newCardCount; i++) {
                 // Generate a random direction for each new card
                 const rand = Math.random();
-                // Always move 2 columns for 1-cell spacing between cards
-                let newCol = lastPos.col + 2;
+                // Move by 1 column for tighter spacing
+                let newCol = lastPos.col + 1;
                 let newRow = lastPos.row;
                 
                 if (rand < 0.5) {
@@ -1486,7 +1486,23 @@ function updatePathDisplay() {
                 }
                 
                 // Keep within grid bounds
-                newRow = Math.max(2, Math.min(newRow, 14));
+                newRow = Math.max(2, Math.min(newRow, 23));
+                
+                // Check if we're getting close to the right edge of the grid
+                // If so, we might want to expand the grid horizontally
+                if (newCol > 20) {
+                    // Try to apply a different random direction that turns back
+                    const randTurn = Math.random();
+                    if (randTurn < 0.7) { // 70% chance to turn
+                        if (randTurn < 0.35) { // 35% chance to go up
+                            newCol = lastPos.col;
+                            newRow = lastPos.row - 1;
+                        } else { // 35% chance to go down
+                            newCol = lastPos.col;
+                            newRow = lastPos.row + 1;
+                        }
+                    }
+                }
                 
                 const newPos = { col: newCol, row: newRow };
                 newPositions.push(newPos);
@@ -1935,14 +1951,14 @@ window.initializeZoomPan = initializeZoomPan;
 
 /**
  * Generate grid positions for the cards in a left-to-right pattern with random vertical variations
- * Now with one-cell spacing between cards to avoid crowding
+ * Now with 1-cell spacing between cards for tighter layout
  */
 function generateGridPositions(cardCount) {
     const positions = [];
     
     // Start position (center of grid)
-    const startCol = 8; // Middle column
-    const startRow = 8; // Middle row as starting point
+    const startCol = 13; // Middle column of a 25x25 grid
+    const startRow = 13; // Middle row as starting point
     
     // Add the entrance card position
     positions.push({ col: startCol, row: startRow });
@@ -1952,10 +1968,9 @@ function generateGridPositions(cardCount) {
     let lastRow = startRow;
     
     for (let i = 1; i < cardCount; i++) {
-        // Each card moves right but with random vertical movement
-        // Add 2 to column to ensure one empty cell between cards
+        // Each card moves to a new position with 1 cell spacing
         const rand = Math.random();
-        let newCol = lastCol + 2;  // Always move right with one cell gap
+        let newCol = lastCol + 1;  // Move right by 1 cell
         let newRow = lastRow;
         
         if (rand < 0.33) {
@@ -1970,7 +1985,23 @@ function generateGridPositions(cardCount) {
         }
         
         // Make sure we stay within grid bounds (vertically)
-        newRow = Math.max(2, Math.min(newRow, 14));
+        newRow = Math.max(2, Math.min(newRow, 23));
+        
+        // Check if we're getting too close to the edge horizontally
+        if (newCol > 20) {
+            // Apply a direction change to avoid hitting the edge
+            const turnRand = Math.random();
+            
+            if (turnRand < 0.7) { // 70% chance to make a significant turn
+                if (turnRand < 0.35) { // 35% chance to go up
+                    newCol = lastCol;
+                    newRow = Math.max(2, lastRow - 1);
+                } else { // 35% chance to go down
+                    newCol = lastCol;
+                    newRow = Math.min(23, lastRow + 1);
+                }
+            }
+        }
         
         // Add the new position
         positions.push({ col: newCol, row: newRow });
