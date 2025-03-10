@@ -591,15 +591,15 @@ function processDecisions() {
         // Update the path display to show new values
         updatePathDisplay();
         
-        // Log player exits to console only, not to game log
+        // We can now reveal who has left
         if (exitingPlayers.length === 1) {
             const player = exitingPlayers[0];
-            console.log(`[PLAYER EXIT] ${player.username} left the cave with ${player.chest} rubies!`);
+            addLogEntry(`${player.username} left the cave with ${player.chest} rubies!`, 'success');
         } else {
             const treasureMessages = exitingPlayers.map(player => 
                 `${player.username} (${player.chest})`
             ).join(', ');
-            console.log(`[PLAYER EXITS] Players left the cave with their treasures: ${treasureMessages}`);
+            addLogEntry(`Players left the cave with their treasures: ${treasureMessages}`, 'success');
         }
         
         // Update game message
@@ -847,7 +847,7 @@ function playerDecision(username, decision) {
     
     // Log the decision
     if (decision === 'exit') {
-        addLogEntry(`${username} decided to leave the cave!`);
+        console.log(`${username} decided to leave the cave!`);
     }
 }
 
