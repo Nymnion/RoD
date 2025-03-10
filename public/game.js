@@ -1080,7 +1080,7 @@ function createCardElement(card, isNewCard = false) {
         
         // Set entrance emoji
         if (cardImage) {
-            cardImage.innerHTML = `<span class="card-emoji">⛰️</span>`;
+            cardImage.innerHTML = `<span class="card-emoji">🗻</span>`;
         }
         
         // Set value content
@@ -1219,8 +1219,9 @@ function createPlayerElement(player) {
         statusElement.textContent = player.status === 'in' ? 'In Cave' : 
                                    player.status === 'exited' ? 'Exited' : 'Out';
     }
-    if (holdingElement) holdingElement.textContent = player.holding || 0;
-    if (chestElement) holdingElement.textContent = player.chest || 0;
+    // Update to show "Holding: X" instead of just the number
+    if (holdingElement) holdingElement.textContent = `Holding: ${player.holding || 0}`;
+    if (chestElement) chestElement.textContent = player.chest || 0;
     
     // Add status class
     if (statusElement) {
@@ -1271,7 +1272,8 @@ function updatePlayerElement(player) {
         }
     }
     
-    if (holdingElement) holdingElement.textContent = player.holding || 0;
+    // Update to show "Holding: X" instead of just the number
+    if (holdingElement) holdingElement.textContent = `Holding: ${player.holding || 0}`;
     if (chestElement) chestElement.textContent = player.chest || 0;
 }
 
@@ -1909,33 +1911,19 @@ function initializeZoomPan() {
         } 
         // Otherwise restore the previous transform state
         else {
+            // Restore the zoom and position
             scale = previousScale;
             translateX = previousTranslateX;
             translateY = previousTranslateY;
             updateTransform();
             
-            // If there's a new card, focus on it while preserving zoom level
-            if (gameState.currentPath.length > 1) {
+            // We're no longer automatically focusing on the new card
+            // Only auto-focus if this is a brand new path (first card after entrance)
+            if (gameState.currentPath.length === 2) {
                 setTimeout(() => {
-                    // Only scroll to new card, don't change zoom
                     const lastCard = Array.from(pathContainer.querySelectorAll('.card')).pop();
                     if (lastCard) {
-                        const containerRect = cavePath.getBoundingClientRect();
-                        const cardRect = lastCard.getBoundingClientRect();
-                        
-                        // Calculate the center of the viewport
-                        const viewportCenterX = containerRect.width / 2;
-                        const viewportCenterY = containerRect.height / 2;
-                        
-                        // Calculate the center of the card
-                        const cardCenterX = cardRect.left - containerRect.left + cardRect.width / 2;
-                        const cardCenterY = cardRect.top - containerRect.top + cardRect.height / 2;
-                        
-                        // Calculate the translation needed (just shifting, not changing zoom)
-                        translateX += (viewportCenterX - cardCenterX);
-                        translateY += (viewportCenterY - cardCenterY);
-                        
-                        updateTransform();
+                        focusOnElement(lastCard);
                     }
                 }, 50);
             }
