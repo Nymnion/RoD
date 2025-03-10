@@ -753,12 +753,6 @@ function processCardEffects(card) {
             
             addLogEntry(`DANGER! A second ${card.trapType} trap appears!`, 'danger');
             
-            // First, give players a chance to make a decision
-            updateGameMessage(`DANGER! A second ${card.trapType} trap appears! You have 15 seconds to type !roach to escape before the trap springs!`);
-            
-            // Start decision phase to give players a chance to escape
-            startDecisionPhase();
-            
             // Activate the trap after the decision phase
             gameState.pendingTrapType = card.trapType;
             
@@ -898,15 +892,15 @@ function processDecisions() {
         // Update the path display to show new values
         updatePathDisplay();
         
-        // Log player exits to console only, not to game log
+        // We can now reveal who has left
         if (exitingPlayers.length === 1) {
             const player = exitingPlayers[0];
-            console.log(`[PLAYER EXIT] ${player.username} left the cave with ${player.chest} rubies!`);
+            addLogEntry(`${player.username} left the cave with ${player.chest} rubies!`, 'success');
         } else {
             const treasureMessages = exitingPlayers.map(player => 
                 `${player.username} (${player.chest})`
             ).join(', ');
-            console.log(`[PLAYER EXITS] Players left the cave with their treasures: ${treasureMessages}`);
+            addLogEntry(`Players left the cave with their treasures: ${treasureMessages}`, 'success');
         }
         
         // Update game message
@@ -1494,13 +1488,18 @@ function playerDecision(username, decision) {
     if (!player || !player.inCave) {
         return;
     }
+
+    if(gameState.pendingTrapType) {
+        addLogEntry(`${username} tried to roach after a trap has been sprung. 😎💿`, 'warning');
+        return;
+    }
     
     // Record decision
     player.decision = decision;
     
     // Log the decision
     if (decision === 'exit') {
-        addLogEntry(`${username} decided to leave the cave!`);
+        console.log(`${username} decided to leave the cave!`);
     }
 }
 
@@ -2160,7 +2159,7 @@ function initializeZoomPan() {
         updateTransform();
         e.preventDefault();
     });
-    
+
     // Mouse up - stop dragging
     window.addEventListener('mouseup', () => {
         isDragging = false;
@@ -2503,3 +2502,4 @@ shakeAnimation.textContent = `
   40%, 60% { transform: translate3d(4px, 0, 0); }
 }`;
 document.head.appendChild(shakeAnimation);
+
