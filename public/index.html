@@ -3,50 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diamant - Twitch Integration Game</title>
+    <title>Roach</title>
     <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;700&family=Metamorphous&display=swap">
     <link rel="stylesheet" href="styles.css">
-	<link rel="stylesheet" href="forsen-lines.css">
+    <link rel="stylesheet" href="forsen-lines.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide@latest/dist/css/lucide.min.css">
 </head>
 <body>
     <div class="game-container">
         <div class="header">
-            <h1>Diamant</h1>
+            <h1>Roach</h1>
             <div class="round-info">
-                <span>Round: <span id="current-round">1</span>/5</span>
-                <span>Players: <span id="player-count">0</span></span>
+                <span>Expedition: <span id="current-round">1</span>/5</span>
+                <span>Explorers: <span id="player-count">0</span></span>
             </div>
         </div>
 
         <div class="main-area">
             <div class="cave-path" id="cave-path">
                 <!-- Cards will be added here dynamically -->
+                <div class="cave-entrance"></div>
             </div>
 
-            <div class="controls-area">
-                <div class="streamer-controls">
-                    <h3>Game Controls</h3>
-                    <button id="start-game" class="primary-btn">Start New Game</button>
-                    <button id="reveal-card" class="primary-btn" disabled>Reveal First Card</button>
-                    <div class="timer-container">
-                        <div id="timer-bar" class="timer-bar"></div>
-                        <span id="timer-text">30s</span>
+            <div class="side-area">
+                <div class="side-container">
+                    <div class="player-list">
+                        <h3>Adventuring Party (<span id="active-players">0</span> active)</h3>
+                        <div id="players-container"></div>
                     </div>
-                </div>
+                    <div class="controls-area">
+                        
+                        <div class="streamer-controls">
+                            <h3>Expedition Controls</h3>
+                            <button id="start-game" class="primary-btn">Begin Expedition</button>
+                            <button id="reveal-card" class="primary-btn" disabled>Reveal Discovery</button>
+                            <button id="join-gamemaster" class="gamemaster-btn">Join as Gamemaster</button>
+                            <div class="timer-container">
+                                <div id="timer-bar" class="timer-bar"></div>
+                                <span id="timer-text">30s</span>
+                            </div>
+                        </div>
 
-                <div class="game-status">
-                    <h3>Game Status</h3>
-                    <div id="game-message" class="game-message">Waiting to start game...</div>
-                    <h3>Game Log</h3>
-                    <div id="game-log"></div>
-                </div>
-            </div>
-        </div>
+                        <div class="game-status">
+                            <h3>Adventure Log</h3>
+                            <div id="game-message" class="game-message">Awaiting brave explorers...</div>
+                            <div id="game-log"></div>
+                        </div>
+                    </div>
 
-        <div class="bottom-area">
-            <div class="player-list">
-                <h3>Explorers (<span id="active-players">0</span> active)</h3>
-                <div id="players-container"></div>
+
+                </div>
             </div>
         </div>
     </div>
@@ -64,9 +71,15 @@
     <template id="card-template">
         <div class="card">
             <div class="card-content">
-                <div class="card-title"></div>
-                <div class="card-image"></div>
-                <div class="card-value"></div>
+                <div class="card-header">
+                    <div class="card-title"></div>
+                </div>
+                <div class="card-image-container">
+                    <div class="card-image"></div>
+                </div>
+                <div class="card-value-container">
+                    <!-- Values will be added dynamically here -->
+                </div>
             </div>
         </div>
     </template>
@@ -76,8 +89,8 @@
             <div class="player-name"></div>
             <div class="player-status">In Cave</div>
             <div class="player-treasure">
-                <span>Holding: <span class="player-holding">0</span></span>
-                <span>Total: <span class="player-chest">0</span></span>
+                <span class="player-holding">Holding: 0</span>
+                <span>Chest: <span class="player-chest">0</span></span>
             </div>
         </div>
     </template>

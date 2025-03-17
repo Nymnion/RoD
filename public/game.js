@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elementsMap.currentRound = document.getElementById('current-round');
     elementsMap.playerCount = document.getElementById('player-count');
     elementsMap.activePlayers = document.getElementById('active-players');
+    elementsMap.joinGamemasterBtn = document.getElementById('join-gamemaster');
     
     // Initialize templates
     cardTemplate = document.getElementById('card-template');
@@ -67,12 +68,21 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Reveal card button not found!");
     }
     
+    if (elementsMap.joinGamemasterBtn) {
+        elementsMap.joinGamemasterBtn.addEventListener('click', joinAsGamemaster);
+    } else {
+        console.error("Join as Gamemaster button not found!");
+    }
+    
     // Set up socket connection for chat messages
     const socket = io();
     socket.on('chatMessage', handleChatMessage);
     
     // Initialize game state
     updateGameMessage('Welcome to Diamant! Click "Start New Game" to begin.');
+    
+    // Initialize zoom and pan functionality
+    initializeZoomPan();
 });
 
 /**
@@ -176,6 +186,16 @@ function startGame() {
     gameState.treasureValues = [];
     gameState.players = {};
     
+    // Initialize round statistics tracking
+    gameState.roundStats = {
+        treasureFound: 0,
+        treasureTaken: 0,
+        trapsEncountered: 0,
+        trapsSprung: 0,
+        playersExited: 0,
+        playersTrapped: 0
+    };
+    
     // Update UI safely
     if (elementsMap.currentRound) elementsMap.currentRound.textContent = gameState.currentRound;
     if (elementsMap.playerCount) elementsMap.playerCount.textContent = '0';
@@ -187,6 +207,14 @@ function startGame() {
     // Disable controls during joining phase
     if (elementsMap.startGameBtn) elementsMap.startGameBtn.disabled = true;
     if (elementsMap.revealCardBtn) elementsMap.revealCardBtn.disabled = true;
+    
+    // Enable the Gamemaster button when a new game starts
+    if (elementsMap.joinGamemasterBtn) {
+        elementsMap.joinGamemasterBtn.disabled = false;
+    }
+    
+    // Initialize path with entrance card
+    initializePathWithEntranceCard();
     
     // Start join timer
     const limitMessage = gameState.playerLimit > 0 ? 
@@ -219,6 +247,14 @@ function startGame() {
     if (timerDisplay) timerDisplay.textContent = `${gameState.timerRemaining}s`;
     if (timerBar) timerBar.style.transform = 'scaleX(1)';
     
+    // Change the Start Game button to "Begin Now" to allow skipping the countdown
+    if (elementsMap.startGameBtn) {
+        elementsMap.startGameBtn.textContent = 'Begin Now';
+        elementsMap.startGameBtn.disabled = false;
+        elementsMap.startGameBtn.removeEventListener('click', showPlayerLimitPrompt);
+        elementsMap.startGameBtn.addEventListener('click', skipJoinTimer);
+    }
+    
     // Start the timer
     gameState.timer = setInterval(() => {
         gameState.timerRemaining--;
@@ -240,8 +276,45 @@ function startGame() {
             
             if (Object.keys(gameState.players).length > 0) {
                 console.log(`Starting first round with ${Object.keys(gameState.players).length} players`);
-                // Start the first round (deck will be created in startNextRound)
-                startNextRound();
+                
+                // Instead of calling startNextRound(), create the deck and prepare the game directly
+                // Similar to what skipJoinTimer() does
+                gameState.deck = createDeck();
+                console.log(`Created new deck with ${gameState.deck.length} cards for round ${gameState.currentRound}`);
+                
+                // Reset player states to be in the cave
+                Object.values(gameState.players).forEach(player => {
+                    player.inCave = true;
+                    player.status = 'in';
+                    player.holding = 0;
+                    updatePlayerElement(player);
+                });
+                
+                // Update active players count
+                if (elementsMap.activePlayers) {
+                    elementsMap.activePlayers.textContent = Object.keys(gameState.players).length;
+                }
+                
+                // Set phase to revealing
+                gameState.phase = 'revealing';
+                
+                // Log the start of the expedition
+                addLogEntry(`Expedition ${gameState.currentRound} begins! Everyone enters the cave...`, 'highlight');
+                updateGameMessage(`Expedition ${gameState.currentRound} begins! Ready to reveal the first card.`);
+                
+                // Reset the reveal card button text and enable it
+                if (elementsMap.revealCardBtn) {
+                    elementsMap.revealCardBtn.textContent = 'Reveal First Card';
+                    elementsMap.revealCardBtn.disabled = false;
+                }
+                
+                // Reset the main button
+                if (elementsMap.startGameBtn) {
+                    elementsMap.startGameBtn.disabled = true;
+                    elementsMap.startGameBtn.textContent = 'Begin Expedition';
+                    elementsMap.startGameBtn.removeEventListener('click', skipJoinTimer);
+                    elementsMap.startGameBtn.addEventListener('click', showPlayerLimitPrompt);
+                }
             } else {
                 console.log("No players joined, canceling game");
                 gameState.phase = 'waiting';
@@ -251,6 +324,116 @@ function startGame() {
             }
         }
     }, 1000);
+}
+
+/**
+ * Skip the join timer and start the game immediately
+ */
+function skipJoinTimer() {
+    console.log("Skipping join timer and starting game immediately");
+    
+    // Clear the join timer
+    if (gameState.timer) {
+        clearInterval(gameState.timer);
+        gameState.timer = null;
+    }
+    
+    if (Object.keys(gameState.players).length > 0) {
+        console.log(`Starting first round with ${Object.keys(gameState.players).length} players`);
+        // Create the deck and prepare the game - don't call startNextRound() as that would show summary
+        gameState.deck = createDeck();
+        console.log(`Created new deck with ${gameState.deck.length} cards for round ${gameState.currentRound}`);
+        
+        // Reset player states to be in the cave
+        Object.values(gameState.players).forEach(player => {
+            player.inCave = true;
+            player.status = 'in';
+            player.holding = 0;
+            updatePlayerElement(player);
+        });
+        
+        // Update active players count
+        if (elementsMap.activePlayers) {
+            elementsMap.activePlayers.textContent = Object.keys(gameState.players).length;
+        }
+        
+        // Set phase to revealing
+        gameState.phase = 'revealing';
+        
+        // Log the start of the expedition
+        addLogEntry(`Expedition ${gameState.currentRound} begins! Everyone enters the cave...`, 'highlight');
+        updateGameMessage(`Expedition ${gameState.currentRound} begins! Ready to reveal the first card.`);
+        
+        // If Gamemaster is playing, update the button text and disable it initially
+        if (gameState.players["Gamemaster"]) {
+            elementsMap.joinGamemasterBtn.textContent = 'Roach as Gamemaster';
+            elementsMap.joinGamemasterBtn.className = 'gamemaster-roach-btn';
+            elementsMap.joinGamemasterBtn.disabled = true;
+            elementsMap.joinGamemasterBtn.removeEventListener('click', joinAsGamemaster);
+            elementsMap.joinGamemasterBtn.addEventListener('click', roachAsGamemaster);
+        }
+        
+        // Reset the reveal card button text and enable it
+        if (elementsMap.revealCardBtn) {
+            elementsMap.revealCardBtn.textContent = 'Reveal First Card';
+            elementsMap.revealCardBtn.disabled = false;
+        }
+        
+        // Reset the main button
+        if (elementsMap.startGameBtn) {
+            elementsMap.startGameBtn.disabled = true;
+            // Change the text back to "Begin Expedition" (for next game)
+            elementsMap.startGameBtn.textContent = 'Begin Expedition';
+            elementsMap.startGameBtn.removeEventListener('click', skipJoinTimer);
+            elementsMap.startGameBtn.addEventListener('click', showPlayerLimitPrompt);
+        }
+    } else {
+        console.log("No players joined, canceling game");
+        gameState.phase = 'waiting';
+        gameState.isActive = false;
+        updateGameMessage('No players joined. Game canceled.');
+        if (elementsMap.startGameBtn) {
+            elementsMap.startGameBtn.disabled = false;
+            elementsMap.startGameBtn.textContent = 'Begin Expedition';
+            elementsMap.startGameBtn.removeEventListener('click', skipJoinTimer);
+            elementsMap.startGameBtn.addEventListener('click', showPlayerLimitPrompt);
+        }
+    }
+}
+
+/**
+ * Initialize path with entrance card as starting point
+ */
+function initializePathWithEntranceCard() {
+    // Create entrance card
+    const entranceCard = {
+        type: 'entrance',
+        value: 0
+    };
+    
+    // Add to path
+    gameState.currentPath.push(entranceCard);
+    
+    // Draw the path with just the entrance card
+    updatePathDisplay();
+    
+    // Make sure zoom controls are visible from the start
+    const cavePath = elementsMap.cavePath;
+    if (cavePath && !cavePath.querySelector('.zoom-controls') && window.initializeZoomPan) {
+        window.initializeZoomPan();
+    }
+    
+    // Focus on entrance card after a short delay to ensure rendering is complete
+    setTimeout(() => {
+        const controls = cavePath.querySelector('.zoom-controls');
+        if (controls) {
+            const entranceButton = controls.querySelector('.focus-entrance');
+            if (entranceButton) entranceButton.click();
+        }
+    }, 100);
+    
+    // Add log entry
+    addLogEntry("The expedition begins at the cave entrance!", 'highlight');
 }
 
 /**
@@ -314,55 +497,6 @@ function shuffleDeck(deck) {
 }
 
 /**
- * Reveal the first card, ensuring it's never a trap
- */
-function revealFirstCard() {
-    console.log("Revealing first card (guaranteed not to be a trap)...");
-    
-    if (gameState.deck.length === 0) {
-        addLogEntry("The deck is empty!", "warning");
-        startNextRound();
-        return;
-    }
-    
-    // Find the first non-trap card in the deck
-    let cardIndex = -1;
-    for (let i = 0; i < gameState.deck.length; i++) {
-        if (gameState.deck[i].type !== 'trap') {
-            cardIndex = i;
-            break;
-        }
-    }
-    
-    // If no non-trap card found, create a treasure card
-    let card;
-    if (cardIndex === -1) {
-        console.log("No non-trap cards found in deck, creating a treasure card");
-        const playerCount = Object.keys(gameState.players).length;
-        const treasureValue = Math.max(5, playerCount * 2); // Decent starting treasure
-        card = { type: 'treasure', value: treasureValue };
-    } else {
-        // Remove the non-trap card from the deck
-        card = gameState.deck.splice(cardIndex, 1)[0];
-    }
-    
-    // Add the card to the path
-    gameState.currentPath.push(card);
-    
-    // Create and add the card element to the path
-    const cardElement = createCardElement(card);
-    if (elementsMap.cavePath) {
-        elementsMap.cavePath.appendChild(cardElement);
-    }
-    
-    // Process the card effects
-    processCardEffects(card);
-    
-    // Start decision phase automatically after revealing a card
-    startDecisionPhase();
-}
-
-/**
  * Reveal the next card from the deck
  */
 function revealNextCard() {
@@ -402,11 +536,100 @@ function revealNextCard() {
     const card = gameState.deck.pop();
     gameState.currentPath.push(card);
     
-    // Create and add the card element to the path
-    const cardElement = createCardElement(card);
-    if (elementsMap.cavePath) {
-        elementsMap.cavePath.appendChild(cardElement);
+    // Process the card effects
+    processCardEffects(card);
+    
+    // Start decision phase automatically after revealing a card
+    startDecisionPhase();
+}
+
+/**
+ * Reveal the first card, ensuring it's never a trap
+ */
+function revealFirstCard() {
+    console.log("Revealing first card (guaranteed not to be a trap)...");
+    
+    if (gameState.deck.length === 0) {
+        addLogEntry("The deck is empty!", "warning");
+        startNextRound();
+        return;
     }
+    
+    // Find the first non-trap card in the deck
+    let cardIndex = -1;
+    for (let i = 0; i < gameState.deck.length; i++) {
+        if (gameState.deck[i].type !== 'trap') {
+            cardIndex = i;
+            break;
+        }
+    }
+    
+    // If no non-trap card found, create a treasure card
+    let card;
+    if (cardIndex === -1) {
+        console.log("No non-trap cards found in deck, creating a treasure card");
+        const playerCount = Object.keys(gameState.players).length;
+        const treasureValue = Math.max(5, playerCount * 2); // Decent starting treasure
+        card = { type: 'treasure', value: treasureValue };
+    } else {
+        // Remove the non-trap card from the deck
+        card = gameState.deck.splice(cardIndex, 1)[0];
+    }
+    
+    // Add the card to the path
+    gameState.currentPath.push(card);
+    
+    // Process the card effects
+    processCardEffects(card);
+    
+    // Update the path display
+    updatePathDisplay();
+    
+    // Start decision phase automatically after revealing a card
+    startDecisionPhase();
+}
+
+// Now implement the enhanced versions that extend the original functions
+// (These will properly override the functions above since they're already defined)
+
+/**
+ * Extended version of revealFirstCard with map layout logic
+ */
+function enhancedRevealFirstCard() {
+    console.log("Revealing first card with map layout (guaranteed not to be a trap)...");
+    
+    if (gameState.deck.length === 0) {
+        addLogEntry("The deck is empty!", "warning");
+        startNextRound();
+        return;
+    }
+    
+    // Find the first non-trap card in the deck
+    let cardIndex = -1;
+    for (let i = 0; i < gameState.deck.length; i++) {
+        if (gameState.deck[i].type !== 'trap') {
+            cardIndex = i;
+            break;
+        }
+    }
+    
+    // If no non-trap card found, create a treasure card
+    let card;
+    if (cardIndex === -1) {
+        console.log("No non-trap cards found in deck, creating a treasure card");
+        const playerCount = Object.keys(gameState.players).length;
+        const treasureValue = Math.max(5, playerCount * 2); // Decent starting treasure
+        card = { type: 'treasure', value: treasureValue };
+    } else {
+        // Remove the non-trap card from the deck
+        card = gameState.deck.splice(cardIndex, 1)[0];
+    }
+    
+    // Add the card to the path
+    gameState.currentPath.push(card);
+    
+    // Update the path display
+    updatePathDisplay();
     
     // Process the card effects
     processCardEffects(card);
@@ -414,6 +637,61 @@ function revealNextCard() {
     // Start decision phase automatically after revealing a card
     startDecisionPhase();
 }
+
+/**
+ * Extended version of revealNextCard with map layout logic
+ */
+function enhancedRevealNextCard() {
+    console.log("Revealing next card with map layout...");
+    
+    if (gameState.deck.length === 0) {
+        addLogEntry("The deck is empty!", "warning");
+        startNextRound();
+        return;
+    }
+    
+    // Check if there are any players in the cave
+    const playersInCave = Object.values(gameState.players).filter(p => p.inCave);
+    if (playersInCave.length === 0) {
+        addLogEntry("All players have left the cave!", "warning");
+        startNextRound();
+        return;
+    }
+    
+    // Disable reveal card button during card reveal
+    if (elementsMap.revealCardBtn) {
+        elementsMap.revealCardBtn.disabled = true;
+        
+        // Change button text to "Reveal Next Card" after first card
+        if (gameState.currentPath.length === 0) {
+            elementsMap.revealCardBtn.textContent = 'Reveal Next Card';
+        }
+    }
+    
+    // If this is the first card, use revealFirstCard to ensure it's not a trap
+    if (gameState.currentPath.length === 0) {
+        enhancedRevealFirstCard();
+        return;
+    }
+    
+    // Reveal the next card
+    const card = gameState.deck.pop();
+    gameState.currentPath.push(card);
+    
+    // Process the card effects
+    processCardEffects(card);
+    
+    // Update the entire path display
+    updatePathDisplay();
+    
+    // Start decision phase automatically after revealing a card
+    startDecisionPhase();
+}
+
+// Replace the original functions with the enhanced versions
+// Do this after both functions are defined and the enhanced versions are created
+revealFirstCard = enhancedRevealFirstCard;
+revealNextCard = enhancedRevealNextCard;
 
 /**
  * Process the effects of a revealed card
@@ -435,6 +713,10 @@ function processCardEffects(card) {
             card.originalValue = card.value; // Store original value for display purposes
             card.value = remainingTreasure;
             
+            // Update round stats
+            gameState.roundStats.treasureFound += card.originalValue;
+            gameState.roundStats.treasureTaken += card.originalValue - remainingTreasure;
+            
             // Add treasure to each player in the cave
             playersInCave.forEach(player => {
                 player.holding = (player.holding || 0) + treasurePerPlayer;
@@ -454,14 +736,21 @@ function processCardEffects(card) {
             // No players in cave, just add to path
             gameState.treasureOnPath += card.value;
             card.originalValue = card.value;
+            gameState.roundStats.treasureFound += card.value;
             addLogEntry(`Revealed: ${card.value} rubies!`, 'success');
         }
     } else if (card.type === 'trap') {
         // Count this trap type
         gameState.revealedTraps[card.trapType] = (gameState.revealedTraps[card.trapType] || 0) + 1;
         
+        // Update trap statistics
+        gameState.roundStats.trapsEncountered++;
+        
         // Check if this is the second trap of this type
         if (gameState.revealedTraps[card.trapType] >= 2) {
+            // Update trap sprung statistics
+            gameState.roundStats.trapsSprung++;
+            
             addLogEntry(`DANGER! A second ${card.trapType} trap appears!`, 'danger');
             
             // Activate the trap after the decision phase
@@ -472,6 +761,7 @@ function processCardEffects(card) {
             addLogEntry(`Revealed: A ${card.trapType} trap! Be careful...`, 'warning');
         }
     } else if (card.type === 'relic') {
+        gameState.roundStats.treasureFound += card.value;
         addLogEntry(`Revealed: A rare relic worth ${card.value} rubies!`, 'highlight');
         gameState.treasureOnPath += card.value;
     }
@@ -498,11 +788,22 @@ function startDecisionPhase() {
     
     gameState.phase = 'deciding';
     
+    // If Gamemaster is in the cave, enable the roach button
+    const gamemaster = gameState.players["Gamemaster"];
+    if (gamemaster && gamemaster.inCave) {
+        elementsMap.joinGamemasterBtn.disabled = false;
+    }
+    
     addLogEntry("Decision time! Type !roach to leave with your treasures, or wait to continue exploring.", 'highlight');
     
     // Start timer for decision phase (15 seconds)
     startTimer(config.decisionTime, () => {
         if (gameState.phase === 'deciding') {
+            // Disable the roach button when timer runs out
+            if (elementsMap.joinGamemasterBtn && elementsMap.joinGamemasterBtn.textContent === 'Roach as Gamemaster') {
+                elementsMap.joinGamemasterBtn.disabled = true;
+            }
+            
             processDecisions();
             
             // Automatically reveal the next card after processing decisions
@@ -537,12 +838,18 @@ function processDecisions() {
     console.log("Exiting players:", exitingPlayers.length);
     
     if (exitingPlayers.length > 0) {
+        // Update stats for exited players
+        gameState.roundStats.playersExited += exitingPlayers.length;
+        
         // Calculate how many players are exiting
         const totalExitingPlayers = exitingPlayers.length;
         
         // Calculate total remaining treasure on the path to divide among exiting players
         const remainingPathTreasure = gameState.treasureOnPath;
         const treasurePerExitingPlayer = Math.floor(remainingPathTreasure / totalExitingPlayers);
+        
+        // Update round stats for treasure taken
+        gameState.roundStats.treasureTaken += remainingPathTreasure;
         
         console.log("Remaining path treasure:", remainingPathTreasure);
         console.log("Treasure per exiting player:", treasurePerExitingPlayer);
@@ -635,6 +942,11 @@ function processDecisions() {
         gameState.phase = 'revealing';
         updateGameMessage("Continuing to the next card...");
     }
+    
+    // Disable the roach button after decisions are processed
+    if (elementsMap.joinGamemasterBtn && elementsMap.joinGamemasterBtn.textContent === 'Roach as Gamemaster') {
+        elementsMap.joinGamemasterBtn.disabled = true;
+    }
 }
 
 /**
@@ -658,6 +970,9 @@ function handleTrapSpring(trapType) {
     
     // Now handle the trap for remaining players
     // All players still in the cave lose their treasures
+    const trappedPlayers = Object.values(gameState.players).filter(p => p.inCave);
+    gameState.roundStats.playersTrapped += trappedPlayers.length;
+    
     Object.values(gameState.players).forEach(player => {
         if (player.inCave) {
             console.log(`${player.username} loses ${player.holding} treasure due to trap!`);
@@ -673,17 +988,250 @@ function handleTrapSpring(trapType) {
         elementsMap.activePlayers.textContent = '0';
     }
     
-    // Start next round after a delay
+    // Disable the roach button since all players are out of the cave
+    if (elementsMap.joinGamemasterBtn && elementsMap.joinGamemasterBtn.textContent === 'Roach as Gamemaster') {
+        elementsMap.joinGamemasterBtn.disabled = true;
+    }
+    
+    // Show the trap animation popup
+    showTrapPopup(trapType, () => {
+        // Start the round summary after the animation completes
+        showRoundSummary();
+    });
+}
+
+/**
+ * Show a dramatic trap popup animation
+ */
+function showTrapPopup(trapType, callback) {
+    // Create the trap popup elements
+    const trapPopupBackdrop = document.createElement('div');
+    trapPopupBackdrop.className = 'trap-popup-backdrop';
+    
+    const trapPopup = document.createElement('div');
+    trapPopup.className = 'trap-popup';
+    
+    const trapPopupContent = document.createElement('div');
+    trapPopupContent.className = 'trap-popup-content';
+    
+    // Create the content
+    const trapTitle = document.createElement('div');
+    trapTitle.className = 'trap-popup-title';
+    trapTitle.textContent = `${trapType.toUpperCase()} TRAP HAS SPRUNG!`;
+    
+    const trapEmoji = document.createElement('div');
+    trapEmoji.className = 'trap-popup-emoji';
+    
+    // Set the emoji based on trap type
+    switch (trapType) {
+        case 'snake':
+            trapEmoji.textContent = '🐍';
+            break;
+        case 'spider':
+            trapEmoji.textContent = '🕷️';
+            break;
+        case 'lava':
+            trapEmoji.textContent = '🔥';
+            break;
+        case 'rockfall':
+            trapEmoji.textContent = '🪨';
+            break;
+        case 'poison':
+            trapEmoji.textContent = '☠️';
+            break;
+        default:
+            trapEmoji.textContent = '⚠️';
+    }
+    
+    const trapMessage = document.createElement('div');
+    trapMessage.className = 'trap-popup-message';
+    trapMessage.textContent = 'All explorers in the cave have lost their treasures!';
+    
+    // Assemble the elements
+    trapPopupContent.appendChild(trapTitle);
+    trapPopupContent.appendChild(trapEmoji);
+    trapPopupContent.appendChild(trapMessage);
+    trapPopup.appendChild(trapPopupContent);
+    
+    // Add to the document
+    document.body.appendChild(trapPopupBackdrop);
+    document.body.appendChild(trapPopup);
+    
+    // Add some screen shake with CSS
+    document.body.style.animation = 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both';
+    
+    // Play a sound if available
+    if (window.playTrapSound) {
+        window.playTrapSound(trapType);
+    }
+    
+    // Remove the popup after 3 seconds
     setTimeout(() => {
-        startNextRound();
-    }, 2000);
+        trapPopup.classList.add('removing');
+        
+        setTimeout(() => {
+            document.body.removeChild(trapPopup);
+            document.body.removeChild(trapPopupBackdrop);
+            document.body.style.animation = '';
+            
+            if (callback) callback();
+        }, 500); // Wait for the exit animation to complete
+    }, 3000);
+}
+
+/**
+ * Show round summary modal with statistics
+ */
+function showRoundSummary() {
+    // Don't show summary for round 0 (before game starts)
+    if (gameState.currentRound === 0) return;
+    
+    console.log("Showing round summary");
+    
+    // Create the modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content summary-modal';
+    
+    // Add title
+    const title = document.createElement('h2');
+    title.textContent = `Expedition ${gameState.currentRound} Summary`;
+    modalContent.appendChild(title);
+    
+    // Create summary content
+    const summary = document.createElement('div');
+    summary.className = 'round-summary';
+    
+    // Create treasure stats section
+    const treasureStats = document.createElement('div');
+    treasureStats.className = 'summary-section';
+    treasureStats.innerHTML = `
+        <h3><span class="summary-icon">🪙</span> Treasure</h3>
+        <div class="summary-stat">
+            <span class="stat-label">Discovered:</span>
+            <span class="stat-value">${gameState.roundStats.treasureFound} rubies</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Collected:</span>
+            <span class="stat-value">${gameState.roundStats.treasureTaken} rubies</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Left behind:</span>
+            <span class="stat-value">${gameState.roundStats.treasureFound - gameState.roundStats.treasureTaken} rubies</span>
+        </div>
+    `;
+    summary.appendChild(treasureStats);
+    
+    // Create danger stats section
+    const dangerStats = document.createElement('div');
+    dangerStats.className = 'summary-section';
+    dangerStats.innerHTML = `
+        <h3><span class="summary-icon">⚠️</span> Dangers</h3>
+        <div class="summary-stat">
+            <span class="stat-label">Traps encountered:</span>
+            <span class="stat-value">${gameState.roundStats.trapsEncountered}</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Traps sprung:</span>
+            <span class="stat-value">${gameState.roundStats.trapsSprung}</span>
+        </div>
+    `;
+    summary.appendChild(dangerStats);
+    
+    // Create player stats section
+    const playerStats = document.createElement('div');
+    playerStats.className = 'summary-section';
+    playerStats.innerHTML = `
+        <h3><span class="summary-icon">👤</span> Explorers</h3>
+        <div class="summary-stat">
+            <span class="stat-label">Total participants:</span>
+            <span class="stat-value">${Object.keys(gameState.players).length}</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Safely exited:</span>
+            <span class="stat-value">${gameState.roundStats.playersExited}</span>
+        </div>
+        <div class="summary-stat">
+            <span class="stat-label">Trapped:</span>
+            <span class="stat-value">${gameState.roundStats.playersTrapped}</span>
+        </div>
+    `;
+    summary.appendChild(playerStats);
+    
+    // Create player standings
+    const standingsSection = document.createElement('div');
+    standingsSection.className = 'summary-section player-standings';
+    standingsSection.innerHTML = '<h3><span class="summary-icon">🏆</span> Current Standings</h3>';
+    
+    // Sort players by chest value
+    const sortedPlayers = Object.values(gameState.players)
+        .sort((a, b) => b.chest - a.chest)
+        .slice(0, 5); // Show only top 5
+    
+    const standingsList = document.createElement('div');
+    standingsList.className = 'standings-list';
+    
+    sortedPlayers.forEach((player, index) => {
+        const playerEntry = document.createElement('div');
+        playerEntry.className = 'player-standing';
+        playerEntry.innerHTML = `
+            <span class="standing-rank">${index + 1}.</span>
+            <span class="standing-name">${player.username}</span>
+            <span class="standing-score">${player.chest} rubies</span>
+        `;
+        standingsList.appendChild(playerEntry);
+    });
+    
+    standingsSection.appendChild(standingsList);
+    summary.appendChild(standingsSection);
+    
+    modalContent.appendChild(summary);
+    
+    // Add continue button
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.marginTop = '20px';
+    buttonContainer.style.textAlign = 'center';
+    
+    const continueButton = document.createElement('button');
+    continueButton.textContent = gameState.currentRound >= config.maxRounds ? 
+        'See Final Results' : 'Continue to Next Expedition';
+    continueButton.className = 'primary-btn';
+    continueButton.style.minWidth = '200px';
+    
+    buttonContainer.appendChild(continueButton);
+    modalContent.appendChild(buttonContainer);
+    
+    // Add modal to the page
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Add event listener to continue button
+    continueButton.addEventListener('click', () => {
+        document.body.removeChild(modal);
+        startNextRoundActual(); // Move the actual round start logic here
+    });
 }
 
 /**
  * Start the next round or end the game
+ * Modified to show summary first, then wait for user input
  */
 function startNextRound() {
-    console.log(`Starting round ${gameState.currentRound + 1}`);
+    console.log(`Starting round ${gameState.currentRound + 1} process`);
+    
+    // Show round summary before starting the next round
+    // The actual round start happens when the user clicks Continue in the summary
+    showRoundSummary();
+}
+
+/**
+ * Actual logic to start the next round after user confirms
+ */
+function startNextRoundActual() {
+    console.log(`Actually starting round ${gameState.currentRound + 1}`);
     
     // Check if this was the final round
     if (gameState.currentRound >= config.maxRounds) {
@@ -699,6 +1247,16 @@ function startNextRound() {
     gameState.currentPath = [];
     gameState.revealedTraps = {};
     gameState.treasureOnPath = 0;
+    
+    // Reset round statistics for the new round
+    gameState.roundStats = {
+        treasureFound: 0,
+        treasureTaken: 0,
+        trapsEncountered: 0,
+        trapsSprung: 0,
+        playersExited: 0,
+        playersTrapped: 0
+    };
     
     // Clear the cave path display
     if (elementsMap.cavePath) elementsMap.cavePath.innerHTML = '';
@@ -725,6 +1283,15 @@ function startNextRound() {
         updatePlayerElement(player);
     });
     
+    // If Gamemaster is playing, ensure the button shows "Roach as Gamemaster" but disabled
+    if (gameState.players["Gamemaster"]) {
+        elementsMap.joinGamemasterBtn.textContent = 'Roach as Gamemaster';
+        elementsMap.joinGamemasterBtn.className = 'gamemaster-roach-btn';
+        elementsMap.joinGamemasterBtn.disabled = true;
+        elementsMap.joinGamemasterBtn.removeEventListener('click', joinAsGamemaster);
+        elementsMap.joinGamemasterBtn.addEventListener('click', roachAsGamemaster);
+    }
+    
     // Update active players count
     if (elementsMap.activePlayers) {
         elementsMap.activePlayers.textContent = Object.keys(gameState.players).length;
@@ -739,6 +1306,9 @@ function startNextRound() {
         elementsMap.revealCardBtn.textContent = 'Reveal First Card';
         elementsMap.revealCardBtn.disabled = false;
     }
+    
+    // Initialize with entrance card automatically
+    initializePathWithEntranceCard();
 }
 
 /**
@@ -767,9 +1337,23 @@ function endGame(message) {
         updateGameMessage("Game over! No players participated.");
     }
     
-    // Enable start game button
-    elementsMap.startGameBtn.disabled = false;
+    // Enable start game button and reset text
+    if (elementsMap.startGameBtn) {
+        elementsMap.startGameBtn.disabled = false;
+        elementsMap.startGameBtn.textContent = 'Begin Expedition';
+        elementsMap.startGameBtn.removeEventListener('click', skipJoinTimer);
+        elementsMap.startGameBtn.addEventListener('click', showPlayerLimitPrompt);
+    }
+    
     elementsMap.revealCardBtn.disabled = true;
+    
+    // Reset the Gamemaster button to join state
+    if (elementsMap.joinGamemasterBtn) {
+        elementsMap.joinGamemasterBtn.disabled = false;
+        elementsMap.joinGamemasterBtn.textContent = 'Join as Gamemaster';
+        elementsMap.joinGamemasterBtn.removeEventListener('click', roachAsGamemaster);
+        elementsMap.joinGamemasterBtn.addEventListener('click', joinAsGamemaster);
+    }
 }
 
 /**
@@ -788,16 +1372,80 @@ function handleChatMessage(data) {
 }
 
 /**
+ * Join the game as the Gamemaster
+ */
+function joinAsGamemaster() {
+    if (!gameState.isActive || gameState.phase !== 'joining') {
+        // Only allow joining during the joining phase
+        updateGameMessage("The Gamemaster can only join during the joining phase!");
+        return;
+    }
+
+    // Check if Gamemaster already exists
+    if (gameState.players["Gamemaster"]) {
+        updateGameMessage("The Gamemaster is already in this expedition!");
+        return;
+    }
+    
+    // Add the Gamemaster as a player
+    addPlayer("Gamemaster", true);
+    
+    // Provide feedback
+    updateGameMessage("The Gamemaster has joined the expedition!");
+    
+    // Change button to "Roach as Gamemaster" when the Gamemaster joins
+    // But initially disable it - it will be enabled during decision phases
+    elementsMap.joinGamemasterBtn.textContent = 'Roach as Gamemaster';
+    elementsMap.joinGamemasterBtn.className = 'gamemaster-roach-btn';
+    elementsMap.joinGamemasterBtn.disabled = true;
+    elementsMap.joinGamemasterBtn.removeEventListener('click', joinAsGamemaster);
+    elementsMap.joinGamemasterBtn.addEventListener('click', roachAsGamemaster);
+}
+
+/**
+ * Gamemaster decides to roach (leave the cave)
+ */
+function roachAsGamemaster() {
+    // Check if the Gamemaster exists and is in the cave
+    if (!gameState.players["Gamemaster"]) {
+        updateGameMessage("The Gamemaster is not in this expedition!");
+        return;
+    }
+
+    // Check if we're in a valid phase to roach
+    if (gameState.phase !== 'deciding') {
+        updateGameMessage("The Gamemaster can only roach during the decision phase!");
+        return;
+    }
+
+    // Check if Gamemaster is in the cave
+    if (!gameState.players["Gamemaster"].inCave) {
+        updateGameMessage("The Gamemaster is not in the cave!");
+        return;
+    }
+    
+    // Trigger the roach decision for Gamemaster
+    playerDecision("Gamemaster", 'exit');
+    
+    // Provide feedback
+
+    updateGameMessage("The Gamemaster signals retreat from the dangers ahead!");
+    
+    // Disable the button after successful roach to prevent multiple roaches
+    elementsMap.joinGamemasterBtn.disabled = true;
+}
+
+/**
  * Add a player to the game
  */
-function addPlayer(username) {
+function addPlayer(username, isGamemaster = false) {
     // Check if player already exists
     if (gameState.players[username]) {
         return;
     }
     
-    // Check if player limit has been reached
-    if (gameState.playerLimit > 0 && Object.keys(gameState.players).length >= gameState.playerLimit) {
+    // Check if player limit has been reached (skip check for Gamemaster)
+    if (!isGamemaster && gameState.playerLimit > 0 && Object.keys(gameState.players).length >= gameState.playerLimit) {
         addLogEntry(`${username} tried to join, but the player limit (${gameState.playerLimit}) has been reached.`, 'warning');
         return;
     }
@@ -808,7 +1456,8 @@ function addPlayer(username) {
         inCave: false,
         holding: 0,
         chest: 0,
-        status: 'waiting'
+        status: 'waiting',
+        isGamemaster: isGamemaster
     };
     
     // Add to game state
@@ -821,8 +1470,12 @@ function addPlayer(username) {
     // Update player count
     elementsMap.playerCount.textContent = Object.keys(gameState.players).length;
     
-    // Log the join
-    addLogEntry(`${username} joined the game!`, 'success');
+    // Log the join - special message for Gamemaster
+    if (isGamemaster) {
+        addLogEntry(`The Gamemaster has arrived to oversee the expedition!`, 'highlight');
+    } else {
+        addLogEntry(`${username} joined the game!`, 'success');
+    }
 }
 
 /**
@@ -851,9 +1504,9 @@ function playerDecision(username, decision) {
 }
 
 /**
- * Create a card element from a card object
+ * Create a card element from a card object with emoji icons
  */
-function createCardElement(card) {
+function createCardElement(card, isNewCard = false) {
     if (!cardTemplate) {
         console.error("Card template not found!");
         return document.createElement('div'); // Return empty div as fallback
@@ -865,46 +1518,142 @@ function createCardElement(card) {
     // Set card type class
     cardElement.classList.add(`${card.type}-card`);
     
-    // Set card content
-    const titleElement = cardElement.querySelector('.card-title');
-    const imageElement = cardElement.querySelector('.card-image');
-    const valueElement = cardElement.querySelector('.card-value');
+    if (card.type === 'trap') {
+        cardElement.classList.add(`trap-${card.trapType}`);
+    }
     
-    if (card.type === 'treasure') {
-        if (titleElement) {
-            // Show original value if available, but keep it short
-            if (card.hasOwnProperty('originalValue')) {
-                titleElement.textContent = `Treasure (${card.originalValue})`;
-                // Add title attribute for hover tooltip with full text
-                titleElement.title = `Treasure (${card.originalValue})`;
-            } else {
-                titleElement.textContent = 'Treasure';
-                titleElement.title = 'Treasure';
-            }
+    // Handle animation differently - remove transform from default style
+    // but keep the card-animated class
+    if (isNewCard && card.type !== 'entrance') {
+        cardElement.classList.add('card-animated');
+        // Don't override the transform directly - let CSS handle the animation
+    } else {
+        // For non-animated cards, set scale to 1 explicitly
+        cardElement.style.transform = 'scale(1)';
+        cardElement.style.opacity = '1';
+    }
+    
+    // Rest of the function remains the same
+    const cardTitle = cardElement.querySelector('.card-title');
+    const cardImage = cardElement.querySelector('.card-image');
+    const cardValueContainer = cardElement.querySelector('.card-value-container');
+
+    if (card.type === 'entrance') {
+        // Set title
+        if (cardTitle) {
+            cardTitle.textContent = 'Cave Entrance';
+            cardTitle.title = 'Starting Point'; // Hover tooltip
         }
         
-        if (valueElement) {
-            // Show remaining gold
-            valueElement.textContent = `${card.value} gold`;
+        // Set entrance emoji
+        if (cardImage) {
+            cardImage.innerHTML = `<span class="card-emoji">🗻</span>`;
+        }
+        
+        // Set value content
+        if (cardValueContainer) {
+            cardValueContainer.innerHTML = '';
+            const valueElem = document.createElement('div');
+            valueElem.className = 'card-value';
+            valueElem.innerHTML = '<span>START</span>';
+            cardValueContainer.appendChild(valueElem);
+        }
+    } else if (card.type === 'treasure') {
+        // Set title
+        if (cardTitle) {
+            cardTitle.textContent = 'Treasure';
+            cardTitle.title = 'Treasure'; // Add title attribute for hover tooltip
+        }
+        
+        // Set treasure emoji
+        if (cardImage) {
+            cardImage.innerHTML = `<span class="card-emoji">🪙</span>`;
+        }
+        
+        // Clear any previous values
+        if (cardValueContainer) {
+            cardValueContainer.innerHTML = '';
+            
+            // Add original value if available
+            if (card.hasOwnProperty('originalValue')) {
+                const originalValueElem = document.createElement('div');
+                originalValueElem.className = 'card-original-value';
+                originalValueElem.innerHTML = '<span class="value-label">Total</span><span>' + card.originalValue + '</span>';
+                cardValueContainer.appendChild(originalValueElem);
+            }
+            
+            // Add current value
+            const valueElem = document.createElement('div');
+            valueElem.className = 'card-value';
+            valueElem.innerHTML = '<span class="value-label">Left</span><span>' + card.value + '</span>';
+            cardValueContainer.appendChild(valueElem);
         }
         
         // Store original and current values as data attributes for animations
         cardElement.dataset.originalValue = card.originalValue || card.value;
         cardElement.dataset.currentValue = card.value;
+        
     } else if (card.type === 'trap') {
-        if (titleElement) {
+        if (cardTitle) {
             const trapName = `${card.trapType.charAt(0).toUpperCase() + card.trapType.slice(1)} Trap`;
-            titleElement.textContent = trapName;
-            titleElement.title = trapName; // Add title attribute for hover tooltip
+            cardTitle.textContent = trapName;
+            cardTitle.title = trapName; // Add title attribute for hover tooltip
         }
-        cardElement.classList.add(`trap-${card.trapType}`);
+        
+        // Set trap emoji based on type
+        if (cardImage) {
+            let emoji = '';
+            
+            switch (card.trapType) {
+                case 'snake':
+                    emoji = '🐍';
+                    break;
+                case 'spider':
+                    emoji = '🕷️';
+                    break;
+                case 'lava':
+                    emoji = '🔥';
+                    break;
+                case 'rockfall':
+                    emoji = '🪨';
+                    break;
+                case 'poison':
+                    emoji = '☠️';
+                    break;
+                default:
+                    emoji = '⚠️';
+            }
+            
+            cardImage.innerHTML = `<span class="card-emoji">${emoji}</span>`;
+        }
+        
+        // Clear value container for traps
+        if (cardValueContainer) {
+            cardValueContainer.innerHTML = '';
+            const warningElem = document.createElement('div');
+            warningElem.className = 'card-value danger';
+            warningElem.innerHTML = '<span>DANGER</span>';
+            cardValueContainer.appendChild(warningElem);
+        }
+        
     } else if (card.type === 'relic') {
-        if (titleElement) {
-            titleElement.textContent = 'Relic';
-            titleElement.title = 'Relic';
+        if (cardTitle) {
+            cardTitle.textContent = 'Relic';
+            cardTitle.title = 'Ancient Relic'; // Add title attribute for hover tooltip
         }
-        if (valueElement) {
-            valueElement.textContent = `${card.value} gold`;
+        
+        // Set relic emoji
+        if (cardImage) {
+            cardImage.innerHTML = `<span class="card-emoji">🏺</span>`;
+        }
+        
+        // Clear any previous values
+        if (cardValueContainer) {
+            cardValueContainer.innerHTML = '';
+            const valueElem = document.createElement('div');
+            valueElem.className = 'card-value';
+            valueElem.innerHTML = '<span class="value-label">Value:</span><span>' + card.value + '</span>';
+            cardValueContainer.appendChild(valueElem);
         }
     }
     
@@ -937,7 +1686,8 @@ function createPlayerElement(player) {
         statusElement.textContent = player.status === 'in' ? 'In Cave' : 
                                    player.status === 'exited' ? 'Exited' : 'Out';
     }
-    if (holdingElement) holdingElement.textContent = player.holding || 0;
+    // Update to show "Holding: X" instead of just the number
+    if (holdingElement) holdingElement.textContent = `Holding: ${player.holding || 0}`;
     if (chestElement) chestElement.textContent = player.chest || 0;
     
     // Add status class
@@ -989,7 +1739,8 @@ function updatePlayerElement(player) {
         }
     }
     
-    if (holdingElement) holdingElement.textContent = player.holding || 0;
+    // Update to show "Holding: X" instead of just the number
+    if (holdingElement) holdingElement.textContent = `Holding: ${player.holding || 0}`;
     if (chestElement) chestElement.textContent = player.chest || 0;
 }
 
@@ -1092,6 +1843,7 @@ function getCardDescription(card) {
 
 /**
  * Update the path display with current cards and treasure values
+ * Modified to preserve existing card positions and add grid visualization
  */
 function updatePathDisplay() {
     if (!elementsMap.cavePath) {
@@ -1099,30 +1851,655 @@ function updatePathDisplay() {
         return;
     }
     
-    // Get all card elements
-    const cardElements = elementsMap.cavePath.querySelectorAll('.card');
+    // Check if path container exists
+    const existingPathContainer = elementsMap.cavePath.querySelector('.path-container');
     
-    // Update each card's value display
-    gameState.currentPath.forEach((card, index) => {
-        if (index < cardElements.length) {
-            const cardElement = cardElements[index];
+    if (!existingPathContainer) {
+        // First time setup - create container and add all cards
+        const pathContainer = document.createElement('div');
+        pathContainer.className = 'path-container';
+        elementsMap.cavePath.appendChild(pathContainer);
+        
+        const pathGrid = document.createElement('div');
+        pathGrid.className = 'path-grid';
+        pathContainer.appendChild(pathGrid);
+        
+        // Add subtle grid cell markers for reference (optional, can be commented out for production)
+        // This helps visualize the actual grid positions
+        for (let row = 1; row <= 25; row++) {
+            for (let col = 1; col <= 25; col++) {
+                const marker = document.createElement('div');
+                marker.className = 'grid-cell-marker';
+                marker.textContent = `${col},${row}`;
+                marker.style.left = `${(col - 0.5) * 150 - 5 - 10}px`;
+                marker.style.top = `${(row - 0.5) * 150 - 5 - 10}px`;
+                pathGrid.appendChild(marker);
+            }
+        }
+        
+        // Generate positions for all cards
+        const gridPositions = generateGridPositions(gameState.currentPath.length);
+        
+        // Store positions in container data attribute for future reference
+        pathContainer.dataset.gridPositions = JSON.stringify(gridPositions);
+        
+        // Add all cards
+        gameState.currentPath.forEach((card, index) => {
+            const isLastCard = index === gameState.currentPath.length - 1 && index > 0;
+            const cardElement = createCardElement(card, isLastCard);
+            const pos = gridPositions[index];
             
-            if (card.type === 'treasure') {
-                // Update title with original value if available
-                const titleElement = cardElement.querySelector('.card-title');
-                if (titleElement && card.hasOwnProperty('originalValue')) {
-                    titleElement.textContent = `Treasure (${card.originalValue})`;
+            // Set position and unique identifier
+            cardElement.style.gridColumn = `${pos.col} / span 1`;
+            cardElement.style.gridRow = `${pos.row} / span 1`;
+            cardElement.dataset.position = `${pos.col}-${pos.row}`;
+            cardElement.dataset.index = index;
+            cardElement.dataset.cardId = `card-${index}`;
+            
+            pathGrid.appendChild(cardElement);
+            
+            // Add connection lines for all cards except the first
+            if (index > 0) {
+                const prevPos = gridPositions[index - 1];
+                drawConnectionLine(prevPos, pos, pathGrid);
+            }
+        });
+        
+        // Add zoom controls
+        if (!elementsMap.cavePath.querySelector('.zoom-controls')) {
+            const controls = createZoomControls();
+            elementsMap.cavePath.appendChild(controls);
+            
+            if (window.setupZoomControlEvents) {
+                window.setupZoomControlEvents(controls);
+            }
+        }
+    } else {
+        // Update existing path - this keeps cards in place
+        const pathGrid = existingPathContainer.querySelector('.path-grid');
+        
+        // Get stored positions
+        let storedPositions = [];
+        try {
+            storedPositions = JSON.parse(existingPathContainer.dataset.gridPositions || '[]');
+        } catch (e) {
+            console.error("Failed to parse stored positions:", e);
+        }
+        
+        // Check if we need to generate positions for new cards
+        if (storedPositions.length < gameState.currentPath.length) {
+            const newCardCount = gameState.currentPath.length - storedPositions.length;
+            const newPositions = [];
+            
+            // Generate positions for new cards, starting from the last known position
+            let lastPos = storedPositions.length > 0 
+                ? storedPositions[storedPositions.length - 1] 
+                : { col: 13, row: 13 }; // Default to center if no positions
+            
+            for (let i = 0; i < newCardCount; i++) {
+                // Generate a random direction for each new card
+                const rand = Math.random();
+                // Move by 1 column for tighter spacing
+                let newCol = lastPos.col + 1;
+                let newRow = lastPos.row;
+                
+                if (rand < 0.5) {
+                    // Go right (50% chance)
+                    // newRow stays the same
+                } else if (rand < 0.75) {
+                    // Go up-right (25% chance)
+                    newRow--;
+                } else {
+                    // Go down-right (25% chance)
+                    newRow++;
                 }
                 
-                // Update value display
-                const valueElement = cardElement.querySelector('.card-value');
-                if (valueElement) {
-                    valueElement.textContent = `${card.value} gold`;
+                // Keep within grid bounds
+                newRow = Math.max(2, Math.min(newRow, 23));
+                
+                // Check if we're getting close to the right edge of the grid
+                // If so, we might want to expand the grid horizontally
+                if (newCol > 20) {
+                    // Try to apply a different random direction that turns back
+                    const randTurn = Math.random();
+                    if (randTurn < 0.7) { // 70% chance to turn
+                        if (randTurn < 0.35) { // 35% chance to go up
+                            newCol = lastPos.col;
+                            newRow = lastPos.row - 1;
+                        } else { // 35% chance to go down
+                            newCol = lastPos.col;
+                            newRow = lastPos.row + 1;
+                        }
+                    }
                 }
                 
-                // Update data attributes
-                cardElement.dataset.currentValue = card.value;
+                const newPos = { col: newCol, row: newRow };
+                newPositions.push(newPos);
+                lastPos = newPos;
+            }
+            
+            // Add new positions to stored positions
+            const updatedPositions = [...storedPositions, ...newPositions];
+            existingPathContainer.dataset.gridPositions = JSON.stringify(updatedPositions);
+            storedPositions = updatedPositions;
+        }
+        
+        // Update or add cards as needed
+        gameState.currentPath.forEach((card, index) => {
+            // Try to find existing card element
+            const existingCard = pathGrid.querySelector(`[data-card-id="card-${index}"]`);
+            
+            if (existingCard) {
+                // Card exists, update values if needed (for treasure/relic cards)
+                if (card.type === 'treasure' || card.type === 'relic') {
+                    const valueContainer = existingCard.querySelector('.card-value-container');
+                    if (valueContainer) {
+                        valueContainer.innerHTML = '';
+                        
+                        if (card.hasOwnProperty('originalValue')) {
+                            const originalValueElem = document.createElement('div');
+                            originalValueElem.className = 'card-original-value';
+                            originalValueElem.innerHTML = '<span class="value-label">Total</span><span>' + card.originalValue + '</span>';
+                            valueContainer.appendChild(originalValueElem);
+                        }
+                        
+                        const valueElem = document.createElement('div');
+                        valueElem.className = 'card-value';
+                        if (card.type === 'treasure') {
+                            valueElem.innerHTML = '<span class="value-label">Left</span><span>' + card.value + '</span>';
+                        } else {
+                            valueElem.innerHTML = '<span class="value-label">Value</span><span>' + card.value + '</span>';
+                        }
+                        valueContainer.appendChild(valueElem);
+                    }
+                }
+            } else {
+                // Create new card
+                const isNewCard = index > 0; // All cards except entrance are "new" for animation
+                const cardElement = createCardElement(card, isNewCard);
+                const pos = storedPositions[index];
+                
+                if (!pos) {
+                    console.error(`No position found for card ${index}`);
+                    return;
+                }
+                
+                // Position card
+                cardElement.style.gridColumn = `${pos.col} / span 1`;
+                cardElement.style.gridRow = `${pos.row} / span 1`;
+                cardElement.dataset.position = `${pos.col}-${pos.row}`;
+                cardElement.dataset.index = index;
+                cardElement.dataset.cardId = `card-${index}`;
+                
+                // Add to grid
+                pathGrid.appendChild(cardElement);
+                
+                // Add connection line if not first card
+                if (index > 0) {
+                    const prevPos = storedPositions[index - 1];
+                    drawConnectionLine(prevPos, pos, pathGrid);
+                }
+            }
+        });
+    }
+}
+
+/**
+ * Draw a connecting line between two card positions
+ */
+function drawConnectionLine(pos1, pos2, gridContainer) {
+    const connection = document.createElement('div');
+    connection.className = 'path-connection';
+    
+    // Calculate the center points of the start and end positions
+    // Each grid cell is 140px square with 10px gap
+    const x1 = (pos1.col - 0.5) * 150 - 5;
+    const y1 = (pos1.row - 0.5) * 150 - 5;
+    const x2 = (pos2.col - 0.5) * 150 - 5;
+    const y2 = (pos2.row - 0.5) * 150 - 5;
+    
+    // Calculate the angle and length of the line
+    const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+    const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    
+    // Position and rotate the line
+    connection.style.width = `${length}px`;
+    connection.style.height = '4px';
+    connection.style.top = `${y1}px`;
+    connection.style.left = `${x1}px`;
+    connection.style.transformOrigin = '0 0';
+    connection.style.transform = `rotate(${angle}deg)`;
+    
+    gridContainer.appendChild(connection);
+}
+
+/**
+ * Create zoom controls for the cave path
+ */
+function createZoomControls() {
+    const controls = document.createElement('div');
+    controls.className = 'zoom-controls';
+    controls.innerHTML = `
+        <button class="zoom-btn zoom-in" title="Zoom In">+</button>
+        <button class="zoom-btn zoom-out" title="Zoom Out">−</button>
+        <button class="zoom-btn zoom-reset" title="Reset Zoom">↺</button>
+        <button class="zoom-btn focus-latest" title="Go to Latest Card">⤑</button>
+        <button class="zoom-btn focus-entrance" title="Go to Entrance">⌂</button>
+    `;
+    return controls;
+}
+
+/**
+ * Set up zoom and pan functionality for the cave path
+ */
+function initializeZoomPan() {
+    const cavePath = elementsMap.cavePath;
+    if (!cavePath) return;
+    
+    let pathContainer = null;
+    let isDragging = false;
+    let startX, startY;
+    let translateX = 0, translateY = 0;
+    let scale = 1;
+    const MIN_SCALE = 0.3;
+    const MAX_SCALE = 3;
+    
+    // Create zoom controls container
+    const controls = createZoomControls();
+    cavePath.appendChild(controls);
+    
+    // Set up event listeners for buttons
+    setupZoomControlEvents(controls);
+    
+    // Store setupZoomControlEvents on window for reuse
+    window.setupZoomControlEvents = setupZoomControlEvents;
+    
+    // Set up event listeners for zoom control buttons
+    function setupZoomControlEvents(controls) {
+        controls.querySelector('.zoom-in').addEventListener('click', () => {
+            if (scale < MAX_SCALE) {
+                const rect = cavePath.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                zoomAtPoint(centerX, centerY, scale + 0.2);
+            }
+        });
+        
+        controls.querySelector('.zoom-out').addEventListener('click', () => {
+            if (scale > MIN_SCALE) {
+                const rect = cavePath.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                zoomAtPoint(centerX, centerY, scale - 0.2);
+            }
+        });
+        
+        controls.querySelector('.zoom-reset').addEventListener('click', resetView);
+        controls.querySelector('.focus-latest').addEventListener('click', focusOnLatestCard);
+        controls.querySelector('.focus-entrance').addEventListener('click', focusOnEntranceCard);
+    }
+
+    // Mouse down - start dragging
+    cavePath.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.zoom-controls')) return;
+        
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        cavePath.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+    
+    // Mouse move - handle dragging
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateTransform();
+        e.preventDefault();
+    });
+
+    // Mouse up - stop dragging
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        if (cavePath) cavePath.style.cursor = 'grab';
+    });
+    
+    // Mouse leave - also stop dragging
+    cavePath.addEventListener('mouseleave', () => {
+        if (isDragging) {
+            isDragging = false;
+            cavePath.style.cursor = 'grab';
+        }
+    });
+    
+    // Touch start - for mobile
+    cavePath.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.zoom-controls')) return;
+        
+        if (e.touches.length === 1) {
+            isDragging = true;
+            startX = e.touches[0].clientX - translateX;
+            startY = e.touches[0].clientY - translateY;
+            e.preventDefault();
+        }
+    });
+    
+    // Touch move - for mobile
+    cavePath.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        
+        if (e.touches.length === 1) {
+            translateX = e.touches[0].clientX - startX;
+            translateY = e.touches[0].clientY - startY;
+            updateTransform();
+            e.preventDefault();
+        }
+    });
+    
+    // Touch end - for mobile
+    cavePath.addEventListener('touchend', () => {
+        isDragging = false;
+    });
+    
+    // Helper function to find the grid cell at a specific point
+    function findGridCellAtPoint(clientX, clientY) {
+        if (!pathContainer) return null;
+        
+        const pathGrid = pathContainer.querySelector('.path-grid');
+        if (!pathGrid) return null;
+        
+        const rect = cavePath.getBoundingClientRect();
+        const mouseX = clientX - rect.left;
+        const mouseY = clientY - rect.top;
+        
+        // Convert mouse position to grid space (accounting for current transform)
+        const gridX = (mouseX - translateX) / scale;
+        const gridY = (mouseY - translateY) / scale;
+        
+        // Calculate grid cell (each cell is 140px with 10px gap, total 150px)
+        const cellSize = 150;
+        const col = Math.floor(gridX / cellSize) + 1;
+        const row = Math.floor(gridY / cellSize) + 1;
+        
+        // Ensure we're within grid bounds
+        if (col < 1 || col > 15 || row < 1 || row > 15) return null;
+        
+        // Calculate center point of the cell
+        const centerX = (col - 0.5) * cellSize;
+        const centerY = (row - 0.5) * cellSize;
+        
+        // Convert back to screen coordinates
+        const screenX = centerX * scale + translateX;
+        const screenY = centerY * scale + translateY;
+        
+        return {
+            col,
+            row,
+            centerX: screenX,
+            centerY: screenY
+        };
+    }
+    
+    // Wheel event for zooming - with grid-based focusing
+    cavePath.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        
+        // Calculate zoom direction and amount
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1; // Smoother zoom steps
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * zoomFactor));
+        
+        if (newScale !== scale) {
+            // Find the grid cell under the mouse cursor
+            const gridCell = findGridCellAtPoint(e.clientX, e.clientY);
+            
+            if (gridCell) {
+                // Zoom centered on the grid cell
+                zoomAtPoint(gridCell.centerX, gridCell.centerY, newScale);
+            } else {
+                // Fall back to zooming at the exact mouse position if no grid cell is found
+                const rect = cavePath.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                zoomAtPoint(mouseX, mouseY, newScale);
             }
         }
     });
+    
+    // Zoom centered at a specific point - improved precision
+    function zoomAtPoint(pointX, pointY, newScale) {
+        if (!pathContainer) return;
+        
+        // Calculate point position in world space before zoom
+        const worldX = (pointX - translateX) / scale;
+        const worldY = (pointY - translateY) / scale;
+        
+        // Apply new scale
+        const oldScale = scale;
+        scale = newScale;
+        
+        // Recalculate translation to keep the point under cursor
+        translateX = pointX - worldX * scale;
+        translateY = pointY - worldY * scale;
+        
+        updateTransform();
+    }
+    
+    // Update transform with current translation and scale
+    function updateTransform() {
+        if (!pathContainer) return;
+        pathContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    }
+    
+    // Reset view to default position
+    function resetView() {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
+    }
+    
+    // Focus on the latest card
+    function focusOnLatestCard() {
+        if (!pathContainer || gameState.currentPath.length === 0) return;
+        
+        const lastCard = Array.from(pathContainer.querySelectorAll('.card')).pop();
+        if (!lastCard) return;
+        
+        focusOnElement(lastCard);
+    }
+    
+    // Focus on the entrance card
+    function focusOnEntranceCard() {
+        if (!pathContainer) return;
+        
+        const entranceCard = pathContainer.querySelector('.entrance-card');
+        if (entranceCard) {
+            focusOnElement(entranceCard);
+        }
+    }
+    
+    // Helper to focus on a specific element
+    function focusOnElement(element) {
+        if (!element || !pathContainer) return;
+        
+        const containerRect = cavePath.getBoundingClientRect();
+        const cardRect = element.getBoundingClientRect();
+        
+        // Calculate where the element should be positioned
+        const targetX = containerRect.width / 2 - cardRect.width / 2;
+        const targetY = containerRect.height / 2 - cardRect.height / 2;
+        
+        // Calculate current position of element (relative to container)
+        const currentX = cardRect.left - containerRect.left;
+        const currentY = cardRect.top - containerRect.top;
+        
+        // Calculate the translation needed
+        translateX += (targetX - currentX);
+        translateY += (targetY - currentY);
+        
+        updateTransform();
+    }
+
+    // Make these functions available globally
+    window.zoomAtPoint = zoomAtPoint;
+    window.findGridCellAtPoint = findGridCellAtPoint;
+    window.focusOnElement = focusOnElement;
+    window.focusOnLatestCard = focusOnLatestCard;  
+    window.focusOnEntranceCard = focusOnEntranceCard;
+    window.updateTransform = updateTransform;
+    
+    // Update references
+    pathContainer = cavePath.querySelector('.path-container');
+    
+    // Override the existing updatePathDisplay to maintain zoom state when revealing cards
+    const originalUpdatePathDisplay = updatePathDisplay;
+    window.updatePathDisplay = function() {
+        // Remember the current transform state
+        const previousScale = scale;
+        const previousTranslateX = translateX;
+        const previousTranslateY = translateY;
+        
+        // Update the display
+        originalUpdatePathDisplay();
+        
+        // Get the updated path container reference
+        pathContainer = cavePath.querySelector('.path-container');
+        
+        // If this is the initial path setup (only entrance card), center on it
+        if (gameState.currentPath.length === 1) {
+            resetView();
+            setTimeout(() => {
+                if (window.focusOnEntranceCard) {
+                    window.focusOnEntranceCard();
+                }
+            }, 50);
+        } 
+        // Otherwise restore the previous transform state
+        else {
+            // Restore the zoom and position
+            scale = previousScale;
+            translateX = previousTranslateX;
+            translateY = previousTranslateY;
+            updateTransform();
+            
+            // We're no longer automatically focusing on the new card
+            // Only auto-focus if this is a brand new path (first card after entrance)
+            if (gameState.currentPath.length === 2) {
+                setTimeout(() => {
+                    const lastCard = Array.from(pathContainer.querySelectorAll('.card')).pop();
+                    if (lastCard) {
+                        focusOnElement(lastCard);
+                    }
+                }, 50);
+            }
+        }
+    };
+    
+    // Initial focus on entrance card if it exists
+    focusOnEntranceCard();
 }
+
+// Store initializeZoomPan in window to ensure it's accessible
+window.initializeZoomPan = initializeZoomPan;
+
+/**
+ * Generate grid positions for the cards with more randomness
+ * Ensures that the same direction isn't repeated more than twice
+ */
+function generateGridPositions(cardCount) {
+    const positions = [];
+    
+    // Start position (center of grid)
+    const startCol = 13; // Middle column of a 25x25 grid
+    const startRow = 13; // Middle row as starting point
+    
+    // Add the entrance card position
+    positions.push({ col: startCol, row: startRow });
+    
+    // Define possible directions
+    const directions = [
+        { name: 'right', colDelta: 1, rowDelta: 0 },
+        { name: 'up-right', colDelta: 1, rowDelta: -1 },
+        { name: 'down-right', colDelta: 1, rowDelta: 1 },
+        { name: 'up', colDelta: 0, rowDelta: -1 },
+        { name: 'down', colDelta: 0, rowDelta: 1 }
+    ];
+    
+    // Track the last direction used and how many times it was repeated
+    let lastDirectionName = null;
+    let directionRepeatCount = 0;
+    
+    // For all subsequent cards (after the entrance), generate positions with spacing
+    let lastCol = startCol;
+    let lastRow = startRow;
+    
+    for (let i = 1; i < cardCount; i++) {
+        // Filter available directions based on current position and past usage
+        const availableDirections = directions.filter(dir => {
+            // Don't allow going out of bounds (stay within grid)
+            const newCol = lastCol + dir.colDelta;
+            const newRow = lastRow + dir.rowDelta;
+            
+            // Check grid boundaries
+            if (newRow < 2 || newRow > 23) return false;
+            
+            // Avoid going too far right (encourage turning)
+            if (newCol > 22) {
+                // Only allow vertical moves when we're too far right
+                return dir.colDelta === 0;
+            }
+            
+            // Limit direction repetition
+            if (dir.name === lastDirectionName && directionRepeatCount >= 2) {
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // If no directions are available (trapped), force a right movement
+        let chosenDirection;
+        if (availableDirections.length === 0) {
+            console.log("Path is trapped, forcing a new direction");
+            chosenDirection = { name: 'right', colDelta: 1, rowDelta: 0 };
+        } else {
+            // Choose a random available direction
+            chosenDirection = availableDirections[Math.floor(Math.random() * availableDirections.length)];
+        }
+        
+        // Update direction tracking
+        if (chosenDirection.name === lastDirectionName) {
+            directionRepeatCount++;
+        } else {
+            lastDirectionName = chosenDirection.name;
+            directionRepeatCount = 1;
+        }
+        
+        // Calculate the new position
+        const newCol = lastCol + chosenDirection.colDelta;
+        const newRow = lastRow + chosenDirection.rowDelta;
+        
+        // Add the new position
+        positions.push({ col: newCol, row: newRow });
+        
+        // Update last position for next card
+        lastCol = newCol;
+        lastRow = newRow;
+    }
+    
+    return positions;
+}
+
+// Add a CSS keyframe animation for screen shake
+const shakeAnimation = document.createElement('style');
+shakeAnimation.textContent = `
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}`;
+document.head.appendChild(shakeAnimation);
+
